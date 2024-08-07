@@ -133,6 +133,8 @@ section .visor_entry
 
     jmp  jump_to_ram
 
+section .text
+
 jump_to_ram:
     ; Set the stack pointer
     mov esp, STACK_END
