@@ -26,5 +26,3 @@ add_custom_command(TARGET ${OUTPUT_NAME} POST_BUILD
     COMMAND ${CMAKE_OBJCOPY} --output-target=binary $<TARGET_FILE:${OUTPUT_NAME}> ${CMAKE_BINARY_DIR}/rom.bin
     COMMENT "Converting ELF to binary"
 )
-
-set_target_properties(${OUTPUT_NAME} PROPERTIES OUTPUT_NAME "rom.bin")

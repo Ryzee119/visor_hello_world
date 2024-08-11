@@ -20,13 +20,17 @@ SECTIONS
     .header40 ROM_BASE + 0x6C : AT (0x40) { KEEP(*(.header40)) } > ROM
     .header6C ROM_BASE + 0x6C : AT (0x6C) { KEEP(*(.header6C)) } > ROM
     .header70 ROM_BASE + 0x70 : AT (0x70) { KEEP(*(.header70)) } > ROM
-
     .xcodes   ROM_BASE + 0x80 : AT (0x80) { KEEP(*(.xcodes)) } > ROM
+    .pad_to_256k : AT (0x3FFFF) {BYTE(0x00)} > ROM
 
     .visor_entry (ROM_BASE + VISOR_ENTRY_OFFSET) : AT (VISOR_ENTRY_OFFSET) {
         KEEP(*(.visor_entry))
         *(.visor_entry);
 
+        /* Pad out to BIN_CODE_BASE */
+        . = ALIGN(4);
+        . = . + BIN_CODE_BASE - VISOR_ENTRY_OFFSET - SIZEOF(.visor_entry) - 1;
+        BYTE(0);
         ROM_CODE_BASE = .;
     } > ROM
 
@@ -73,15 +77,9 @@ SECTIONS
     .heap (NOLOAD) : {
         . = ALIGN(4K);
         HEAP_BASE = .;
-        . += 32M;
-        /*. += LENGTH(RAM) - RAM_CODE_BASE - STACK_END;*/
+        . += LENGTH(RAM) - (HEAP_BASE - ORIGIN(RAM));
         HEAP_END = .;
     } > RAM
-
-    .pad_to_256k 0x20000 : {
-        . = 0x20000 - 1;
-        BYTE(0xFF);
-    }
 
     /DISCARD/ : {
         *(.comment)
