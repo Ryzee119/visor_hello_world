@@ -313,7 +313,12 @@ xc_jne 0x00000010, loc_83C
 xc_io_write 0x0000C000, 0x00000010          ; smbus status set ; clear
 xc_pci_write 0x8000F020, 0xFDF0FD00
 xc_pci_write 0x80010010, 0xFD000000         ; set nv2a register base address
-xc_mem_write 0x00000000, 0xfc1000B8         ; VISOR prep
+
+; VISOR trick. Due to rollover bug at 0xFFFFFFFF, use xcodes to push a jmp to our code in ROM at 0xfffc1000
+; mov eax, 0xfffc1000 (This is our code entry in ROM)
+; jmp eax
+; nop
+xc_mem_write 0x00000000, 0xfc1000B8
 xc_mem_write 0x00000004, 0x90e0ffff
 
 ; !!! First operand will be ignored. !!!

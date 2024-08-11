@@ -1,12 +1,18 @@
-MEMORY
-{
-    ROM   (rx) : ORIGIN = 0xFFFC0000, LENGTH = 256K
-    RAM   (rwx) : ORIGIN = 0x00000000, LENGTH = 64M
-}
-
 ROM_BASE = 0xFFFC0000;
 RAM_BASE = 0x00000000;
-RAM_CODE = RAM_BASE + 0x0001000;
+
+/* The offset in the BIN file that user code begins */
+BIN_CODE_BASE = 0x2000;
+
+STACK_SIZE = 4K;
+VISOR_ENTRY_OFFSET = 0x00001000; /* See 2bxcodes.nasm */
+MAIN_ENTRY_OFFSET = 0x00100000;
+
+MEMORY
+{
+    ROM   (rx) : ORIGIN = ROM_BASE, LENGTH = 256K
+    RAM   (rwx) : ORIGIN = RAM_BASE, LENGTH = 64M
+}
 
 SECTIONS
 {
@@ -15,26 +21,24 @@ SECTIONS
     .header6C ROM_BASE + 0x6C : AT (0x6C) { KEEP(*(.header6C)) } > ROM
     .header70 ROM_BASE + 0x70 : AT (0x70) { KEEP(*(.header70)) } > ROM
 
-    .xcodes ROM_BASE + 0x80 : AT (0x80) { KEEP(*(.xcodes)) } > ROM
+    .xcodes   ROM_BASE + 0x80 : AT (0x80) { KEEP(*(.xcodes)) } > ROM
 
-    .visor_entry ROM_BASE + 0x1000 : AT (0x1000) {
+    .visor_entry (ROM_BASE + VISOR_ENTRY_OFFSET) : AT (VISOR_ENTRY_OFFSET) {
         KEEP(*(.visor_entry))
         *(.visor_entry);
-        END_OF_ROM_CODE = .;
+
+        ROM_CODE_BASE = .;
     } > ROM
 
-    CODE_OFFSET_IN_ROM = END_OF_ROM_CODE - ROM_BASE;
-
-    .text RAM_CODE : AT (CODE_OFFSET_IN_ROM) {
+    .text (RAM_BASE + MAIN_ENTRY_OFFSET): AT (BIN_CODE_BASE) {
         . = ALIGN(4K);
         RAM_CODE_BASE = .;
-        RAM_CODE_BASE_IN_ROM = END_OF_ROM_CODE;
         *(.text)
         *(.text.*)
         _text_end = .;
     } > RAM
 
-    .data : AT (CODE_OFFSET_IN_ROM + SIZEOF(.text)) {
+    .data : AT (BIN_CODE_BASE + SIZEOF(.text)) {
         . = ALIGN(4K);
         _data_start = .;
         *(.data)
@@ -42,7 +46,7 @@ SECTIONS
         _data_end = .;
     } > RAM
 
-    .rodata : AT (CODE_OFFSET_IN_ROM + SIZEOF(.text) + SIZEOF(.data)) {
+    .rodata : AT (BIN_CODE_BASE + SIZEOF(.text) + SIZEOF(.data)) {
         . = ALIGN(4K);
         _rodata_start = .;
         *(.rodata)
@@ -62,23 +66,41 @@ SECTIONS
     .stack (NOLOAD) : {
         . = ALIGN(4K);
         STACK_BASE = .;
-        . += 0x4000;
+        . += STACK_SIZE;
         STACK_END = .;
     } > RAM
 
     .heap (NOLOAD) : {
+        . = ALIGN(4K);
         HEAP_BASE = .;
-        . += ORIGIN(RAM) + LENGTH(RAM) - 4M - SIZEOF(.text) - SIZEOF(.data) - SIZEOF(.rodata) - SIZEOF(.bss) - SIZEOF(.stack); /* Remaining RAM minus stack size */
+        . += 32M;
+        /*. += LENGTH(RAM) - RAM_CODE_BASE - STACK_END;*/
         HEAP_END = .;
     } > RAM
 
     .pad_to_256k 0x20000 : {
         . = 0x20000 - 1;
-        BYTE(0xFF)
+        BYTE(0xFF);
     }
 
+    /DISCARD/ : {
+        *(.comment)
+        *(.note.GNU-stack)
+        *(.eh_frame)
+        *(.rela.eh_frame)
+        *(.shstrtab)
+        *(.symtab)
+        *(.strtab)
+        *(.got.plt)
+    }
+
+    /* Used when copying code from ROM to RAM */
     RAM_CODE_SIZE = SIZEOF(.text) + SIZEOF(.data) + SIZEOF(.rodata);
 
+    /* Used when clearing BSS section on init */
     BSS_SIZE = BSS_END - BSS_BASE;
-    BSS_SIZE_L = BSS_SIZE / 4;
+    BSS_DWORDS = BSS_SIZE / 4;
+
+    /* Used if you need to setup malloc etc */
+    HEAP_SIZE = HEAP_END - HEAP_BASE;
 }

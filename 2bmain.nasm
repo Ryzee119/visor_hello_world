@@ -1,9 +1,9 @@
 ; https://github.com/XboxDev/cromwell/blob/master/boot_rom/2bBootStartup.S
 
 extern RAM_CODE_BASE
-extern RAM_CODE_BASE_IN_ROM
+extern ROM_CODE_BASE
 extern RAM_CODE_SIZE
-extern BSS_SIZE_L
+extern BSS_DWORDS
 extern STACK_END
 extern BSS_BASE
 
@@ -79,7 +79,7 @@ section .visor_entry
 
     ; Disable cache
     mov eax, cr0
-    or eax, 0x60000000
+    or eax, (0x60000000)
     mov cr0, eax
     wbinvd
 
@@ -126,7 +126,7 @@ section .visor_entry
 
     ; Copy everything into RAM
     mov edi, RAM_CODE_BASE
-    mov esi, RAM_CODE_BASE_IN_ROM
+    mov esi, ROM_CODE_BASE
     mov ecx, RAM_CODE_SIZE
     shr ecx, 2
     rep movsd
@@ -134,14 +134,13 @@ section .visor_entry
     jmp  jump_to_ram
 
 section .text
-
 jump_to_ram:
     ; Set the stack pointer
     mov esp, STACK_END
 
     ; Clear out .bss
     xor eax, eax
-    mov ecx, BSS_SIZE_L
+    mov ecx, BSS_DWORDS
     mov edi, BSS_BASE
     rep stosd
 
