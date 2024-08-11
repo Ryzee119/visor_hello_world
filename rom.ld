@@ -81,17 +81,6 @@ SECTIONS
         HEAP_END = .;
     } > RAM
 
-    /DISCARD/ : {
-        *(.comment)
-        *(.note.GNU-stack)
-        *(.eh_frame)
-        *(.rela.eh_frame)
-        *(.shstrtab)
-        *(.symtab)
-        *(.strtab)
-        *(.got.plt)
-    }
-
     /* Used when copying code from ROM to RAM */
     RAM_CODE_SIZE = SIZEOF(.text) + SIZEOF(.data) + SIZEOF(.rodata);
 
