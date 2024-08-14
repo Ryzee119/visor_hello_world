@@ -1,13 +1,13 @@
 ; https://github.com/XboxDev/cromwell/blob/master/boot_rom/2bBootStartup.S
 
-extern RAM_CODE_BASE
-extern ROM_CODE_BASE
-extern RAM_CODE_SIZE
-extern BSS_DWORDS
-extern STACK_END
-extern BSS_BASE
-
-extern main
+extern __ram_data_base
+extern __ram_data_source
+extern __ram_data_size
+extern __bss_dsize
+extern __bss_start
+extern __stack
+extern __libc_init_array
+extern boot
 
 %macro WR_MSR 3 ; addr, hi, lo
     mov ecx, %1
@@ -124,25 +124,80 @@ section .visor_entry
     and eax, 0x9fffffff
     mov cr0, eax
 
-    ; Copy everything into RAM
-    mov edi, RAM_CODE_BASE
-    mov esi, ROM_CODE_BASE
-    mov ecx, RAM_CODE_SIZE
+    ; Clear out .bss
+    xor eax, eax
+    mov ecx, __bss_dsize
+    mov edi, __bss_start
+    rep stosd
+
+    ; Enable Floating Point
+    mov eax, cr4
+    or  eax, (1<<9 | 1<<10)
+    mov cr4, eax
+    clts
+    fninit
+
+    ; Copy text into RAM
+    mov edi, __ram_data_base
+    mov esi, __ram_data_source
+    mov ecx, __ram_data_size
     shr ecx, 2
     rep movsd
 
-    jmp  jump_to_ram
+    ; Jump to c code
+    jmp ram_entry;
 
 section .text
-jump_to_ram:
+ram_entry:
+
     ; Set the stack pointer
-    mov esp, STACK_END
+    mov esp, __stack
 
-    ; Clear out .bss
-    xor eax, eax
-    mov ecx, BSS_DWORDS
-    mov edi, BSS_BASE
-    rep stosd
+    ; Set the Interrupt Descriptor Table
+    lidt [cs:idt_desc]
 
-    ; Jump to c code
-    jmp main
+    ; Set the Global Descriptor Table
+    lgdt [cs:gdt_desc]
+
+    ; Far jump to reload CS with segment selector 0x0010
+    jmp 0x0010:reload_segment_selector
+
+align 16
+reload_segment_selector:
+    mov ax, 0x0018         ; Move 0x0018 into AX register
+    mov ss, ax             ; Move AX into SS register
+    mov ds, ax             ; Move AX into DS register
+    mov es, ax             ; Move AX into ES register
+
+    ; Clear FS and GS
+    xor eax, eax           ; Clear EAX register
+    mov fs, eax            ; Move EAX into FS register
+    mov gs, eax            ; Move EAX into GS register
+
+    call __libc_init_array
+
+    jmp boot
+
+section .data
+align 0x10
+gdt_table:
+    dq 0x0000000000000000  ; Dummy
+    dq 0x00CF9B000000FFFF  ; 0x0008 code32
+    dq 0x00CF9B000000FFFF  ; 0x0010 code32
+    dq 0x00CF93000000FFFF  ; 0x0018 data32
+    dq 0x008F9B000000FFFF  ; 0x0020 code16 (8F indicates 4K granularity, huge limit)
+    dq 0x008F93000000FFFF  ; 0x0028 data16
+    dq 0x0000000000000000  ; Dummy
+
+idt_table:
+    times 0x5000 db 0    ; Allocate 0x5000 bytes (each initialized to 0)
+
+gdt_desc:
+    dw 0x30                ; Limit (size of GDT - 1)
+    dd gdt_table           ; Base address of GDT
+    dw 0x00;
+
+idt_desc:
+    dw 2048                ; 16-bit word (0x800 in hex, alignment padding for 16-bit descriptors)
+    dd idt_table           ; 32-bit double word (address or other 32-bit value)
+    dw 0x00;

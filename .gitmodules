@@ -1,0 +1,6 @@
+[submodule "lib/picolibc"]
+	path = lib/picolibc
+	url = https://github.com/picolibc/picolibc.git
+[submodule "lib/freertos_kernel"]
+	path = lib/freertos_kernel
+	url = https://github.com/FreeRTOS/FreeRTOS-Kernel.git
