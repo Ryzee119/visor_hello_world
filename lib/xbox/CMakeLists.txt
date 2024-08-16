@@ -3,7 +3,8 @@ cmake_minimum_required(VERSION 3.13)
 add_library(xbox INTERFACE)
 
 file(GLOB C_SOURCES "*.c")
-target_sources(xbox INTERFACE ${C_SOURCES})
+file(GLOB ASM_SOURCES "*.nasm")
+target_sources(xbox INTERFACE ${C_SOURCES} ${ASM_SOURCES})
 
 target_include_directories(xbox INTERFACE
  ${CMAKE_CURRENT_LIST_DIR}

@@ -24,4 +24,11 @@ void serial_putchar(char character)
     while ((io_input_byte(SERIAL_PORT + SERIAL_LSR) & (1 << 5)) == 0)
         ;
     io_output_byte(SERIAL_PORT + SERIAL_THR, character);
+
+    if (character == '\n')
+    {
+        while ((io_input_byte(SERIAL_PORT + SERIAL_LSR) & (1 << 5)) == 0)
+            ;
+        io_output_byte(SERIAL_PORT + SERIAL_THR, '\r');
+    }
 }

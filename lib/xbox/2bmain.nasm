@@ -159,15 +159,19 @@ ram_entry:
     ; Set the Global Descriptor Table
     lgdt [cs:gdt_desc]
 
-    ; Far jump to reload CS with segment selector 0x0010
+    ; As we changed gdt while in protected mode, we need to reload the code segment selector
+    ; this is done by doign a long jump.
     jmp 0x0010:reload_segment_selector
 
 align 16
 reload_segment_selector:
-    mov ax, 0x0018         ; Move 0x0018 into AX register
-    mov ss, ax             ; Move AX into SS register
-    mov ds, ax             ; Move AX into DS register
-    mov es, ax             ; Move AX into ES register
+    ; Set the data segment registers
+    mov ax, 0x0018
+
+    ; Set the segment registers
+    mov ss, ax
+    mov ds, ax
+    mov es, ax
 
     ; Clear FS and GS
     xor eax, eax           ; Clear EAX register
