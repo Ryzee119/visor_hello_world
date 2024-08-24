@@ -153,9 +153,6 @@ ram_entry:
     ; Set the stack pointer
     mov esp, __stack
 
-    ; Set the Interrupt Descriptor Table
-    lidt [cs:idt_desc]
-
     ; Set the Global Descriptor Table
     lgdt [cs:gdt_desc]
 
@@ -193,15 +190,8 @@ gdt_table:
     dq 0x008F93000000FFFF  ; 0x0028 data16
     dq 0x0000000000000000  ; Dummy
 
-idt_table:
-    times 0x5000 db 0    ; Allocate 0x5000 bytes (each initialized to 0)
-
 gdt_desc:
     dw 0x30                ; Limit (size of GDT - 1)
     dd gdt_table           ; Base address of GDT
     dw 0x00;
 
-idt_desc:
-    dw 2048                ; 16-bit word (0x800 in hex, alignment padding for 16-bit descriptors)
-    dd idt_table           ; 32-bit double word (address or other 32-bit value)
-    dw 0x00;

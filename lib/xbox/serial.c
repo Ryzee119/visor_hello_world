@@ -1,10 +1,10 @@
 #include "xbox.h"
 
 #define SERIAL_PORT 0x3f8
-#define SERIAL_THR 0
-#define SERIAL_LSR 5
+#define SERIAL_THR  0
+#define SERIAL_LSR  5
 
-void serial_init(void)
+void xbox_serial_init(void)
 {
     io_output_byte(0x2e, 0x55);
     io_output_byte(0x2e, 0x07);
@@ -18,17 +18,14 @@ void serial_init(void)
     io_output_byte(0x2e, 0xAA);
 }
 
-void serial_putchar(char character)
+void xbox_serial_putchar(char character)
 {
     /* Wait for THRE (bit 5) to be high */
     while ((io_input_byte(SERIAL_PORT + SERIAL_LSR) & (1 << 5)) == 0)
         ;
     io_output_byte(SERIAL_PORT + SERIAL_THR, character);
 
-    if (character == '\n')
-    {
-        while ((io_input_byte(SERIAL_PORT + SERIAL_LSR) & (1 << 5)) == 0)
-            ;
-        io_output_byte(SERIAL_PORT + SERIAL_THR, '\r');
+    if (character == '\n') {
+        xbox_serial_putchar('\r');
     }
 }

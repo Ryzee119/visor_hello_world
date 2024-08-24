@@ -1,8 +1,6 @@
 #include "xbox.h"
 
-//power
-//tray
-//led
-//temp
-//fan
-//reboot
+// power
+// tray
+// fan
+// reboot

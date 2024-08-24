@@ -44,12 +44,13 @@ set(CMAKE_ASM_NASM_COMPILE_OBJECT "<CMAKE_ASM_NASM_COMPILER> <DEFINES> \
 
 # Build our xbox specific code
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/xbox xbox)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/ia32 ia32)
 
 # Create the executable
 add_executable(${OUTPUT_NAME})
 
 # We link gcc as we need some gcc functions. FIXME?
-target_link_libraries(${OUTPUT_NAME} PRIVATE c gcc freertos_kernel xbox )
+target_link_libraries(${OUTPUT_NAME} PRIVATE c gcc freertos_kernel xbox ia32)
 
 # Set the linker flags
 set_target_properties(${OUTPUT_NAME} PROPERTIES
@@ -65,6 +66,7 @@ add_custom_command(TARGET ${OUTPUT_NAME} POST_BUILD
 # Include directories
 target_include_directories(${OUTPUT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/lib
 )
 
 # Source files

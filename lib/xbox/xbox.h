@@ -2,41 +2,134 @@
 #define XBOX_H
 
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
+#include <ia32/io.h>
+#include <ia32/pci_io.h>
 
-static __inline void io_output_byte(uint16_t address, uint8_t value) {
-    __asm__ __volatile__ ("outb %b0,%w1": :"a" (value), "Nd" (address));
-}
+#include "encoder.h"
+#include "gpu.h"
+#include "led.h"
+#include "pci.h"
+#include "serial.h"
+#include "smbus.h"
+#include "timer.h"
+#include "video.h"
 
-static __inline void io_output_word(uint16_t address, uint16_t value) {
-    __asm__ __volatile__ ("outw %0,%w1": :"a" (value), "Nd" (address));
-	}
+/* Main South Bridge Clocks */
+// Measured, looks like its derived from the 27Mhz crystal on the motherboard (27 / 2)
+// by clock generator IC ICS388R (C7C1) https://upload.wikimedia.org/wikipedia/commons/d/df/Xbox-Motherboard-Rev1.jpg
+#define MCLCK 13500000
 
-static __inline void io_output_dword(uint16_t address, uint32_t value) {
-    __asm__ __volatile__ ("outl %0,%w1": :"a" (value), "Nd" (address));
-}
+// 3.375Mhz (From KeQueryPerformanceFrequency)
+#define ACPI_TIMER_FREQ (MCLCK / 4)
+#define ACPI_TIMER_IO_PORT 0x8008 // Cromwell
 
-static __inline uint8_t io_input_byte(uint16_t address) {
-  uint8_t v;
-  __asm__ __volatile__ ("inb %w1,%0":"=a" (v):"Nd" (address));
-  return v;
-}
+// 1.125Mhz https://xboxdevwiki.net/Porting_an_Operating_System_to_the_Xbox_HOWTO#Timer_Frequency
+#define PIC_TIMER_FREQ (MCLCK / 12)
 
-static __inline uint16_t io_input_word(uint16_t address) {
-  uint16_t _v;
-  __asm__ __volatile__ ("inw %w1,%0":"=a" (_v):"Nd" (address));
-  return _v;
-}
+/* Main North Bridge Clock */
+#define NB_BASE_FEQ (16666666)        // 16.6666666Mhz (From clock gen)
+#define NB_FSB_FREQ (NB_BASE_FEQ * 8) // 133.3333333Mhz (FSB) FIXME, multiplier can change with overclocking
+#define NB_CPU_FREQ ((5500 * NB_FSB_FREQ) / 1000))
 
-static __inline uint32_t io_input_dword(uint16_t address) {
-  uint32_t _v;
-  __asm__ __volatile__ ("inl %w1,%0":"=a" (_v):"Nd" (address));
-  return _v;
-}
+// MMIO Bases
+#define XBOX_APIC_BASE 0xFEE00000
 
-void serial_init(void);
-void serial_putchar(char character);
+/* PCI Bus Address and MMIO - We match stock xbox */
+#define PCI_XBOX_SYSTEM_BUS 0
+#define PCI_XBOX_GPU_BUS 1
 
-int smbus_read(uint8_t address, uint8_t reg, uint8_t size_of_data, uint32_t *data);
-int smbus_write(uint8_t address, uint8_t reg, uint8_t size_of_data, uint32_t data);
+// Bus 0, device 0, function 0.
+#define PCI_HOSTBRIDGE_DEVICE_ID 0
+#define PCI_HOSTBRIDGE_FUNCTION_ID 0
+
+// Bus 0, device 1, function 0.
+#define PCI_LPCBRIDGE_DEVICE_ID 1
+#define PCI_LPCBRIDGE_FUNCTION_ID 0
+#define PCI_LPCBRIDGE_IO_REGISTER_BASE_0 0x8000
+
+// Bus 0, device 1, function 1.
+#define PCI_SMBUS_DEVICE_ID 1
+#define PCI_SMBUS_FUNCTION_ID 1
+#define PCI_SMBUS_IO_REGISTER_BASE_1 0xC000
+#define PCI_SMBUS_IO_REGISTER_BASE_2 0xC200
+
+// Bus 0, device 2, function 0.
+#define PCI_USB0_DEVICE_ID 2
+#define PCI_USB0_FUNCTION_ID 0
+#define PCI_USB0_IRQ 1
+#define PCI_USB0_MEMORY_REGISTER_BASE_0 0xFED00000
+
+// Bus 0, device 3, function 0.
+#define PCI_USB1_DEVICE_ID 3
+#define PCI_USB1_FUNCTION_ID 0
+#define PCI_USB1_IRQ 9
+#define PCI_USB1_MEMORY_REGISTER_BASE_0 0xFED08000
+
+// Bus 0, device 4, function 0.
+#define PCI_NIC_DEVICE_ID 4
+#define PCI_NIC_FUNCTION_ID 0
+#define PCI_NIC_IRQ 4
+#define PCI_NIC_MEMORY_REGISTER_BASE_0 0xFEF00000
+#define PCI_NIC_IO_REGISTER_BASE_1 0xE000
+
+// Bus 0, device 5, function 0.
+#define PCI_APU_DEVICE_ID 5
+#define PCI_APU_FUNCTION_ID 0
+#define PCI_APU_IRQ 5
+#define PCI_APU_MEMORY_REGISTER_BASE_0 0xFE800000
+
+// Bus 0, device 6, function 0.
+#define PCI_ACI_DEVICE_ID 6
+#define PCI_ACI_FUNCTION_ID 0
+#define PCI_ACI_IRQ 6
+#define PCI_ACI_IO_REGISTER_BASE_0 0xD000
+#define PCI_ACI_IO_REGISTER_BASE_1 0xD200
+#define PCI_ACI_MEMORY_REGISTER_BASE_2 0xFEC00000
+
+// Bus 0, device 9, function 0.
+#define PCI_IDE_DEVICE_ID 9
+#define PCI_IDE_FUNCTION_ID 0
+#define PCI_IDE_IRQ 14
+#define PCI_IDE_IO_REGISTER_BASE_4 0xFF60
+
+// Bus 0, device 30, function 0.
+#define PCI_AGPBRIDGE_DEVICE_ID 30
+#define PCI_AGPBRIDGE_FUNCTION_ID 0
+
+// Bus 1, device 0, device 0.
+#define PCI_GPU_DEVICE_ID 0
+#define PCI_GPU_FUNCTION_ID 0
+#define PCI_GPU_IRQ 3
+#define PCI_GPU_MEMORY_REGISTER_BASE_0 0xFD000000
+
+#if (0)
+#define A20_GATE_SPEAKER_BASE 0x0060
+#define CMOS_RTC_BASE 0x0070
+#define DMA_PAGE_ADDRESS_BASE 0x0080
+#define SLAVE_PIC_BASE 0x00A0
+#define DMA_CHANNELS_4_7_BASE 0x00C0
+#define FPU_ERROR_CONTROL_BASE 0x00F0
+#define IDE_BASE 0x01F0
+#define PCI_CONFIG_BASE 0x0CF8
+#define SMBUS_I2C_BASE 0x1000
+#define LPC_PM_BASE 0x8000
+#define SMBUS_I2C_ALT_BASE 0xC000
+#define SMBUS_I2C_ALT2_BASE 0xC200
+#define ACI_AC97_BASE 0xD000
+#define ACI_AC97_ALT_BASE 0xD200
+#define NIC_NVNET_BASE 0xE000
+#define IDE_ALT_BASE 0xFF60
+#endif
+
+#define XBOX_SMBUS_ADDRESS_SMC 0x20
+#define XBOX_SMBUS_ADDRESS_EEPROM 0xA8
+#define XBOX_SMBUS_ADDRESS_TEMP 0x98
+#define XBOX_SMBUS_ADDRESS_ENCODER_CONEXTANT 0x84
+#define XBOX_SMBUS_ADDRESS_ENCODER_FOCUS 0xD4
+#define XBOX_SMBUS_ADDRESS_ENCODER_XCALIBUR 0xE0
 
 #endif
