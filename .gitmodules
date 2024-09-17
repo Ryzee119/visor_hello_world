@@ -3,7 +3,7 @@
 	url = https://github.com/picolibc/picolibc.git
 [submodule "lib/freertos_kernel"]
 	path = lib/freertos_kernel
-	url = https://github.com/FreeRTOS/FreeRTOS-Kernel.git
+	url = https://github.com/Ryzee119/FreeRTOS-Kernel.git
 [submodule "lib/tinyusb"]
 	path = lib/tinyusb
 	url = https://github.com/hathach/tinyusb_src.git
