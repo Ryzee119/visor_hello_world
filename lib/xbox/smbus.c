@@ -1,121 +1,154 @@
-#include <stdint.h>
 #include "xbox.h"
 
 // https://xboxdevwiki.net/SMBus
-#define SBMUS_IO_BASE    0xc000
-#define SMBUS_STATUS     (SBMUS_IO_BASE + 0x00)
-#define SMBUS_CONTROL    (SBMUS_IO_BASE + 0x02)
-#define SMBUS_ADDRESS    (SBMUS_IO_BASE + 0x04)
-#define SMBUS_DATA       (SBMUS_IO_BASE + 0x06)
-#define SMBUS_COMMAND    (SBMUS_IO_BASE + 0x08)
-#define SMBUS_BLOCK_DATA (SBMUS_IO_BASE + 0x09)
 
-#define SMBUS_STATUS_ABORT          0x0001
-#define SMBUS_STATUS_COLLISION      0x0002
-#define SMBUS_STATUS_PROTOCOL_ERROR 0x0004
-#define SMBUS_STATUS_BUSY           0x0008
-#define SMBUS_STATUS_CYCLE_COMPLETE 0x0010
-#define SMBUS_STATUS_TIMEOUT        0x0020
-#define SMBUS_STATUS_ERROR                                                                                             \
-    (SMBUS_STATUS_ABORT | SMBUS_STATUS_COLLISION | SMBUS_STATUS_PROTOCOL_ERROR | SMBUS_STATUS_TIMEOUT)
+static atomic_flag lock;
 
-#define SMBUS_CONTROL_TRANSFER_TYPE_DWORD 0x05
-#define SMBUS_CONTROL_TRANSFER_TYPE_WORD  0x03
-#define SMBUS_CONTROL_TRANSFER_TYPE_BYTE  0x02
-#define SMBUS_CONTROL_START               0x08
-#define SMBUS_CONTROL_USE_INTERRUPT       0x10
-#define SMBUS_CONTROL_ABORT               0x20
-
-#define SMBUS_RETURN_SUCCESS 0
-#define SMBUS_RETURN_ERROR   -1
-
-int8_t xbox_smbus_output(uint8_t address, uint8_t reg, uint32_t data, uint8_t data_len)
+int8_t xbox_smbus_io(uint8_t address, uint8_t command, void *data, uint8_t data_len, uint8_t read)
 {
     uint16_t status;
-    while (io_input_word(SMBUS_STATUS) & SMBUS_STATUS_BUSY)
-        ;
+    uint32_t actual_length = data_len;
+    uint8_t *data8 = (uint8_t *)data;
+    uint16_t *data16 = (uint16_t *)data;
 
-    io_output_byte(SMBUS_ADDRESS, address &= ~0x01);
-    io_output_byte(SMBUS_COMMAND, reg);
-
-    // Clear previous status flags
-    status = io_input_word(SMBUS_STATUS);
-    io_output_word(SMBUS_STATUS, status);
-
-    // Start the transfer
-    if (data_len == 1) {
-        io_output_word(SMBUS_DATA, data & 0xFF);
-        io_output_byte(SMBUS_CONTROL, SMBUS_CONTROL_TRANSFER_TYPE_BYTE | SMBUS_CONTROL_START);
-    } else if (data_len == 2) {
-        io_output_word(SMBUS_DATA, data & 0xFFFF);
-        io_output_byte(SMBUS_CONTROL, SMBUS_CONTROL_TRANSFER_TYPE_WORD | SMBUS_CONTROL_START);
-    } else if (data_len == 4) {
-        io_output_byte(SMBUS_BLOCK_DATA, (data >> 0) & 0xFF);
-        io_output_byte(SMBUS_BLOCK_DATA, (data >> 8) & 0xFF);
-        io_output_byte(SMBUS_BLOCK_DATA, (data >> 16) & 0xFF);
-        io_output_byte(SMBUS_BLOCK_DATA, (data >> 24) & 0xFF);
-        io_output_byte(SMBUS_DATA, data_len);
-        io_output_byte(SMBUS_CONTROL, SMBUS_CONTROL_TRANSFER_TYPE_DWORD | SMBUS_CONTROL_START);
-    }
-
-    // Wait for completion
-    while (io_input_byte(SMBUS_STATUS) & SMBUS_STATUS_BUSY)
-        ;
-
-    // Return the transfer status
-    status = io_input_word(SMBUS_STATUS);
-    if (status & SMBUS_STATUS_ERROR) {
-        return SMBUS_RETURN_ERROR;
-    } else {
-        return SMBUS_RETURN_SUCCESS;
-    }
-}
-
-int8_t xbox_smbus_input(uint8_t address, uint8_t reg, void *data, uint8_t data_len)
-{
-    uint16_t status;
-    while (io_input_word(SMBUS_STATUS) & SMBUS_STATUS_BUSY)
-        ;
-
-    io_output_byte(SMBUS_ADDRESS, address | 0x01);
-    io_output_byte(SMBUS_COMMAND, reg);
-
-    // Clear previous status flags
-    status = io_input_word(SMBUS_STATUS);
-    io_output_word(SMBUS_STATUS, status);
-
-    // Start the transfer
-    if (data_len == 1) {
-        io_output_byte(SMBUS_CONTROL, SMBUS_CONTROL_TRANSFER_TYPE_BYTE | SMBUS_CONTROL_START);
-    } else if (data_len == 2) {
-        io_output_byte(SMBUS_CONTROL, SMBUS_CONTROL_TRANSFER_TYPE_WORD | SMBUS_CONTROL_START);
-    } else if (data_len == 4) {
-        io_output_byte(SMBUS_CONTROL, SMBUS_CONTROL_TRANSFER_TYPE_DWORD | SMBUS_CONTROL_START);
-    }
-
-    // Wait for completion
-    while (io_input_byte(SMBUS_STATUS) & SMBUS_STATUS_BUSY)
-        ;
-
-    // Read in the data
-    status = io_input_word(SMBUS_STATUS);
-    if (status & SMBUS_STATUS_ERROR) {
-        return SMBUS_RETURN_ERROR;
-    } else {
-        if (data_len == 1) {
-            *(uint8_t *)data = io_input_byte(SMBUS_DATA);
-            return SMBUS_RETURN_SUCCESS;
-        } else if (data_len == 2) {
-            *(uint16_t *)data = io_input_word(SMBUS_DATA);
-            return SMBUS_RETURN_SUCCESS;
-        } else if (data_len == 4) {
-            uint32_t data32 = io_input_byte(SMBUS_BLOCK_DATA);
-            data32 |= io_input_byte(SMBUS_BLOCK_DATA) << 8;
-            data32 |= io_input_byte(SMBUS_BLOCK_DATA) << 16;
-            data32 |= io_input_byte(SMBUS_BLOCK_DATA) << 24;
-            *(uint32_t *)data = data32;
-            return SMBUS_RETURN_SUCCESS;
+    if (read) {
+        read = 1;
+        if (data) {
+            memset(data, 0, data_len);
         }
     }
-    return SMBUS_RETURN_ERROR;
+
+    spinlock_acquire(&lock);
+
+    while (io_input_word(SMBUS_STATUS) & SMBUS_STATUS_BUSY) {
+        system_yield(0);
+    }
+
+    io_output_byte(SMBUS_ADDRESS, address | read);
+
+    if (data_len > 0) {
+        io_output_byte(SMBUS_COMMAND, command);
+    }
+
+    io_output_word(SMBUS_STATUS, 0xFFFF);
+
+    uint8_t transfer_type;
+    switch (data_len) {
+        case 0:
+            transfer_type = SMBUS_CONTROL_TRANSFER_TYPE_ZERO;
+            if (read == 0) {
+                io_output_byte(SMBUS_COMMAND, *data8);
+            }
+            break;
+        case 1:
+            transfer_type = SMBUS_CONTROL_TRANSFER_TYPE_BYTE;
+            if (read == 0) {
+                io_output_byte(SMBUS_DATA, *data8);
+            }
+            break;
+        case 2:
+            transfer_type = SMBUS_CONTROL_TRANSFER_TYPE_WORD;
+            if (read == 0) {
+                io_output_word(SMBUS_DATA, *data16);
+            }
+            break;
+        default:
+            transfer_type = SMBUS_CONTROL_TRANSFER_TYPE_BLOCK;
+            if (read == 0) {
+                io_output_byte(SMBUS_DATA, data_len);
+                for (uint8_t i = 0; i < data_len; i++) {
+                    io_output_byte(SMBUS_BLOCK_DATA, data8[i]);
+                }
+            }
+            break;
+    }
+
+    // Start the transfer
+    io_output_byte(SMBUS_CONTROL, transfer_type | SMBUS_CONTROL_START);
+
+    // Wait for completion
+    while (io_input_word(SMBUS_STATUS) & SMBUS_STATUS_BUSY) {
+        system_yield(1);
+    }
+
+    // Get the transfer status
+    status = io_input_word(SMBUS_STATUS);
+    io_output_word(SMBUS_STATUS, 0xFFFF);
+
+    if (status & SMBUS_STATUS_ERROR) {
+        spinlock_release(&lock);
+
+        printf("[SMBUS] ERROR Address %02x, Command: %02x Error: %04X: ", address, command, status);
+        if (status & SMBUS_STATUS_ABORT) {
+            printf("Aborted ");
+        }
+        if (status & SMBUS_STATUS_COLLISION) {
+            printf("Collision ");
+        }
+        if (status & SMBUS_STATUS_PROTOCOL_ERROR) {
+            printf("Protocol Error ");
+        }
+        if (status & SMBUS_STATUS_TIMEOUT) {
+            printf("Timeout ");
+        }
+        printf("\n");
+        return SMBUS_RETURN_ERROR;
+    }
+
+    if (read) {
+        switch (data_len) {
+            case 1:
+                *data8 = io_input_byte(SMBUS_DATA);
+                break;
+            case 2:
+                *data16 = io_input_word(SMBUS_DATA);
+                break;
+            default:
+                actual_length = io_input_byte(SMBUS_DATA);
+                if (actual_length > data_len) {
+                    actual_length = data_len;
+                }
+                for (uint8_t i = 0; i < actual_length; i++) {
+                    data8[i] = io_input_byte(SMBUS_BLOCK_DATA);
+                }
+                break;
+        }
+    }
+    spinlock_release(&lock);
+    return actual_length;
+}
+
+int8_t xbox_smbus_poke(uint8_t address)
+{
+    return xbox_smbus_io(address, 0, NULL, 0, 0);
+}
+
+int8_t xbox_smbus_input_byte(uint8_t address, uint8_t reg, uint8_t *data)
+{
+    return xbox_smbus_io(address, reg, data, 1, 1);
+}
+
+int8_t xbox_smbus_input_word(uint8_t address, uint8_t reg, uint16_t *data)
+{
+    return xbox_smbus_io(address, reg, data, 2, 1);
+}
+
+int8_t xbox_smbus_input_dword(uint8_t address, uint8_t reg, uint32_t *data)
+{
+    return xbox_smbus_io(address, reg, data, 4, 1);
+}
+
+int8_t xbox_smbus_output_byte(uint8_t address, uint8_t reg, uint8_t data)
+{
+    return xbox_smbus_io(address, reg, &data, 1, 0);
+}
+
+int8_t xbox_smbus_output_word(uint8_t address, uint8_t reg, uint16_t data)
+{
+    return xbox_smbus_io(address, reg, &data, 2, 0);
+}
+
+int8_t xbox_smbus_output_dword(uint8_t address, uint8_t reg, uint32_t data)
+{
+    return xbox_smbus_io(address, reg, &data, 4, 0);
 }

@@ -1,0 +1,23 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Run xemu",
+            "type": "shell",
+            "command": "xemu",
+            "args": [
+                "-device",
+                "lpc47m157",
+                "-serial",
+                "stdio",
+                "-bios",
+                "rom.bin"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        }
+    ]
+}

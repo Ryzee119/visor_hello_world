@@ -1,64 +1,60 @@
-// docker run --rm -it -v "${PWD}:/home/devuser/work" qsrahmans/i686-elf-gcc:dev bash -c "i686-elf-gcc -Wa,--gdwarf2
-// -Wa,-march=pentium -c -o portASM.o lib/freertos_kernel/portable/GCC/IA32_flat/portASM.S"
-#include <stdio.h>
-#include <stdlib.h>
+#include "main.h"
 
-#include <xbox/xbox.h>
+static uint8_t freertos_running = 0;
+extern void vPortYieldCall(void);
+extern void vPortTimerHandler(void);
 
-#include <FreeRTOS.h>
-#include <task.h>
-#include <queue.h>
-#include <timers.h>
-#include <semphr.h>
-
-static void exampleTask(void *parameters)
+void system_yield(uint32_t ms)
 {
-    /* Unused parameters. */
-    (void)parameters;
+    if (freertos_running) {
+        vTaskDelay(pdMS_TO_TICKS(ms));
+    } else {
+        xbox_timer_spin_wait(XBOX_TIMER_MS_TO_TICKS(ms));
+    }
+}
 
-    TickType_t delay = pdMS_TO_TICKS(1000);
-    for (;;) {
-        /* Example Task Code */
-        uint32_t a = xbox_timer_query_performance_counter();
-        vTaskDelay(delay); /* delay 100 ticks */
-        uint32_t b = xbox_timer_query_performance_counter();
-        printf("Thread1 b - a %u\r\n", ((b - a) * 1000) / xbox_timer_query_performance_frequency());
+static void freertos_entry(void *parameters)
+{
+    (void)parameters;
+    printf("FreeRTOS entry\n");
+
+    // FreeRTOS x86 port uses the LAPIC timer. This must be used in-conjunction with the IOAPIC interrupt controller.
+    // Although the xbox should have both of these peripherals, I could not get the IOAPIC to work. I suspect there is
+    // some PCI address space write to enable it (where!?). Also APU overlays IOAPIC address space (fixable).
+    // Therefore we replace the timer callbacks with the PIC timer interrupt and disable the APIC
+    mmio_output_dword(XBOX_APIC_BASE + APIC_LVT_LINT0, 0x00000700);
+    mmio_output_dword(XBOX_APIC_BASE + APIC_SIV, 0);
+    xPortInstallInterruptHandler(vPortTimerHandler, XBOX_PIC1_BASE_VECTOR_ADDRESS + XBOX_PIT_TIMER_IRQ);
+    pic8259_irq_enable(XBOX_PIC1_DATA_PORT, XBOX_PIT_TIMER_IRQ);
+
+    __asm__ __volatile__("" ::: "memory");
+    freertos_running = 1;
+
+    interrupts_init();
+    usb_init();
+
+    while (1) {
+        vTaskDelay(portMAX_DELAY);
     }
 }
 
 int main(void)
 {
-    int used = 1;
-    char memory[64];
+    // We create this task statically. FreeRTOS calls freertos_entry immediately after vTaskStartScheduler without any context switch
+    // which is good because we can setup the PIC timer with FreeRTOS context before the scheduler actually starts.
+    static StaticTask_t freertos_entry_task;
+    static StackType_t freertos_entry_stack[configMINIMAL_STACK_SIZE];
+    xTaskCreateStatic(freertos_entry, "Entry", configMINIMAL_STACK_SIZE, NULL, THREAD_PRIORITY_LOWEST, freertos_entry_stack, &freertos_entry_task);
 
-    float a = 9.1f;
-    float b = 3.2f;
-    float c = a * b;
-
-    printf("Example FreeRTOS Project\n");
-
-    snprintf(memory, sizeof(memory), "Hello, World!! %d %f\r\n", used, c);
-    printf("%s\n", memory);
-
-    static StaticTask_t exampleTaskTCB;
-    static StackType_t exampleTaskStack[4096];
-    (void)xTaskCreateStatic(exampleTask, "example", 4096, NULL, configMAX_PRIORITIES - 1U, &(exampleTaskStack[0]),
-                            &(exampleTaskTCB));
-
-    /* Start the scheduler. */
     vTaskStartScheduler();
 
-    for (;;) {
-        /* Should not reach here. */
-    }
-
+    // Should never get here
+    assert(0);
     return 0;
 }
 
 void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
 {
-    /* Check pcTaskName for the name of the offending task,
-     * or pxCurrentTCB if pcTaskName has itself been corrupted. */
     (void)xTask;
-    (void)pcTaskName;
+    printf("Stack overflow in task %s\n", pcTaskName);
 }

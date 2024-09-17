@@ -1,13 +1,24 @@
 ; https://github.com/XboxDev/cromwell/blob/master/boot_rom/2bBootStartup.S
 
-extern __ram_data_base
-extern __ram_data_source
-extern __ram_data_size
+extern __user_text_base
+extern __user_text_source
+extern __user_text_size
+extern __user_data_base
+extern __user_data_source
+extern __user_data_size
+extern __user_rodata_base
+extern __user_rodata_source
+extern __user_rodata_size
+
+extern __boot_code_base
+extern __boot_code_source
+extern __boot_code_size
+
 extern __bss_dsize
 extern __bss_start
 extern __stack
-extern __libc_init_array
 extern boot
+extern boot_pic_challenge_response
 
 %macro WR_MSR 3 ; addr, hi, lo
     mov ecx, %1
@@ -87,24 +98,25 @@ section .visor_entry
     mov eax, eax
     mov cr3, eax
 
-    ; Initialize MTRRs
+    ; Disable MTRRs
     WR_MSR 0x2ff, 0, 0
 
-    ; 0 +128M WB (RAM)
-    WR_MSR 0x200, 0x00000000, 0x00000006 ; Base
+    ; 0 +128M WB (RAM) (0x00000000 + 128MB)
+    ; 128 MB region starting at address 0x00000000 to be cached as Write-Back (WB) memory
+    WR_MSR 0x200, 0x00000000, 0x00000004 ; Base
     WR_MSR 0x201, 0x0000000f, 0xf8000800 ; Mask
 
-    ; 0xf0000000 +128M WC (VRAM)
+    ; 0xf0000000 +128M WC (VRAM) (0xF0000000 + 128MB)
+    ; 128 MB region starting at address 0xf0000000 to be cached as Write-Combining (WC) memory
     WR_MSR 0x202, 0x00000000, 0xf0000001 ; Base
     WR_MSR 0x203, 0x0000000f, 0xf8000800 ; Mask
 
     ; 0xfff00000 +1M WP (Flash)
-    WR_MSR 0x204, 0x00000000, 0xfff00005 ; Base
+    ; 1 MB region starting at address 0xfff00000 to be cached as Write-Protected (WP) memory
+    WR_MSR 0x204, 0x00000000, 0xFff00000 ; Base
     WR_MSR 0x205, 0x0000000f, 0xfff00800 ; Mask
 
     ; Clear other MTRRs
-    WR_MSR 0x204, 0x00000000, 0x00000000
-    WR_MSR 0x205, 0x00000000, 0x00000000
     WR_MSR 0x206, 0x00000000, 0x00000000
     WR_MSR 0x207, 0x00000000, 0x00000000
     WR_MSR 0x208, 0x00000000, 0x00000000
@@ -121,8 +133,20 @@ section .visor_entry
 
     ; Enable Caching
     mov eax, cr0
-    and eax, 0x9fffffff
+    mov ebx, eax
+    and eax, 0x9FFFFFFF
     mov cr0, eax
+
+    ; Copy initial boot code to RAM
+    cld
+    mov     edi, __boot_code_base
+    mov     esi, __boot_code_source
+    mov     ecx, __boot_code_size
+    shr     ecx, 2
+    rep     movsd
+
+    ; Set the stack pointer
+    mov esp, __stack
 
     ; Clear out .bss
     xor eax, eax
@@ -130,68 +154,94 @@ section .visor_entry
     mov edi, __bss_start
     rep stosd
 
-    ; Enable Floating Point
-    mov eax, cr4
-    or  eax, (1<<9 | 1<<10)
-    mov cr4, eax
-    clts
-    fninit
+    ; Jump to initial boot code
+    jmp boot_entry;
 
-    ; Copy text into RAM
-    mov edi, __ram_data_base
-    mov esi, __ram_data_source
-    mov ecx, __ram_data_size
-    shr ecx, 2
-    rep movsd
+; We're in RAM now
+section .bss
+; IDT in BSS as we just want some reserved space to setup later
+idt_table:
+    resq 256
 
-    ; Jump to c code
-    jmp ram_entry;
+section .boot_code
+align 16
+gdt_table:
+    dq 0x0000000000000000  ; Dummy
+    dq 0x00CF9B000000FFFF  ; 0x0008 code32 4G
+    dq 0x00CF93000000FFFF  ; 0x0010 data32 4G
 
-section .text
-ram_entry:
+gdt_desc:
+    dw 24-1                ; Limit (size of gdt_table - 1)
+    dd gdt_table           ; Base address of gdt_table
+    dw 0x00;
 
-    ; Set the stack pointer
-    mov esp, __stack
+idt_desc:
+    dw 256*8-1             ; Limit (size of idt_table - 1)
+    dd idt_table           ; Base address of idt_table
+    dw 0x00;
+
+boot_entry:
+    ; Ensure interrupts are disabled to update gdt
+    cli
 
     ; Set the Global Descriptor Table
-    lgdt [cs:gdt_desc]
+    lgdt [gdt_desc]
+    lidt [idt_desc]
+
+    xor eax, eax      ; Clear EAX register, setting it to zero
+    lldt ax           ; Load the Local Descriptor Table (LDT) register with the value in AX
 
     ; As we changed gdt while in protected mode, we need to reload the code segment selector
-    ; this is done by doign a long jump.
-    jmp 0x0010:reload_segment_selector
+    ; this is done by doing a long jump with the code32 offset
+    jmp 0x0008:reload_segment_selectors
 
 align 16
-reload_segment_selector:
-    ; Set the data segment registers
-    mov ax, 0x0018
-
-    ; Set the segment registers
+reload_segment_selectors:
+    ; Set the data segment registers now
+    mov ax, 0x0010
     mov ss, ax
     mov ds, ax
     mov es, ax
 
-    ; Clear FS and GS
-    xor eax, eax           ; Clear EAX register
-    mov fs, eax            ; Move EAX into FS register
-    mov gs, eax            ; Move EAX into GS register
+    ; Clear fs and gs
+    xor eax, eax
+    mov fs, eax
+    mov gs, eax
 
-    call __libc_init_array
+    ; Clear out .bss
+    xor eax, eax
+    mov ecx, __bss_dsize
+    mov edi, __bss_start
+    rep stosd
+
+    ; ?
+    ;outb(0x61, 0x08);
+    mov     al, 0x8
+    mov     dx, 0x61
+    out     dx, al
+    
+    ; Need to do this quickly after boot, so we do it before we copy user code 
+    ; into RAM
+    call boot_pic_challenge_response
+
+    ; Copy rest of code to RAM
+    cld
+    mov     edi, __user_text_base
+    mov     esi, __user_text_source
+    mov     ecx, __user_text_size
+    shr     ecx, 2
+    rep     movsd
+
+    mov     edi, __user_data_base
+    mov     esi, __user_data_source
+    mov     ecx, __user_data_size
+    shr     ecx, 2
+    rep     movsd
+
+    mov     edi, __user_rodata_base
+    mov     esi, __user_rodata_source
+    mov     ecx, __user_rodata_size
+    shr     ecx, 2
+    rep     movsd
 
     jmp boot
-
-section .data
-align 0x10
-gdt_table:
-    dq 0x0000000000000000  ; Dummy
-    dq 0x00CF9B000000FFFF  ; 0x0008 code32
-    dq 0x00CF9B000000FFFF  ; 0x0010 code32
-    dq 0x00CF93000000FFFF  ; 0x0018 data32
-    dq 0x008F9B000000FFFF  ; 0x0020 code16 (8F indicates 4K granularity, huge limit)
-    dq 0x008F93000000FFFF  ; 0x0028 data16
-    dq 0x0000000000000000  ; Dummy
-
-gdt_desc:
-    dw 0x30                ; Limit (size of GDT - 1)
-    dd gdt_table           ; Base address of GDT
-    dw 0x00;
-

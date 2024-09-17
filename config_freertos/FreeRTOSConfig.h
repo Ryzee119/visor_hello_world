@@ -53,10 +53,7 @@
  * settings.  Your application will certainly need a different value so set this
  * correctly. This is very often, but not always, equal to the main system clock
  * frequency. */
-#ifdef TICK_TYPE_WIDTH_16_BITS //Hack to prevent is being included in .S file
-extern uint32_t APIC_SPEED;
-#define configCPU_CLOCK_HZ    ( ( unsigned long ) APIC_SPEED )
-#endif
+#define configCPU_CLOCK_HZ    ( ( unsigned long ) 133333333 )
 
 /* configSYSTICK_CLOCK_HZ is an optional parameter for ARM Cortex-M ports only.
  *
@@ -193,7 +190,7 @@ extern uint32_t APIC_SPEED;
 /* If configHEAP_CLEAR_MEMORY_ON_FREE is set to 1, then blocks of memory
  * allocated using pvPortMalloc() will be cleared (i.e. set to zero) when freed
  * using vPortFree(). Defaults to 0 if left undefined. */
-#define configHEAP_CLEAR_MEMORY_ON_FREE            1
+#define configHEAP_CLEAR_MEMORY_ON_FREE            0
 
 /* vTaskList and vTaskGetRunTimeStats APIs take a buffer as a parameter and
  * assume that the length of the buffer is configSTATS_BUFFER_MAX_LENGTH.
@@ -419,6 +416,21 @@ extern uint32_t APIC_SPEED;
  * number of the failing assert (for example, "vAssertCalled( __FILE__, __LINE__
  * )" or it can simple disable interrupts and sit in a loop to halt all
  * execution on the failing line for viewing in a debugger. */
+
+#ifdef TICK_TYPE_WIDTH_16_BITS //Hack to prevent is being included in .S file
+#include <stdio.h>
+static inline void printme(const char *f, int l) {
+    printf("ASSERT FAILED %s %d", f, l);
+}
+#define configASSERT( x )         \
+    if( ( x ) == 0 )              \
+    {                             \
+        taskDISABLE_INTERRUPTS(); \
+        printme(__FILE__, __LINE__); \
+        for( ; ; )                \
+        ;                         \
+    }
+#else
 #define configASSERT( x )         \
     if( ( x ) == 0 )              \
     {                             \
@@ -426,6 +438,7 @@ extern uint32_t APIC_SPEED;
         for( ; ; )                \
         ;                         \
     }
+#endif
 
 /******************************************************************************/
 /* Definitions that include or exclude functionality. *************************/
@@ -465,8 +478,7 @@ extern uint32_t APIC_SPEED;
 #define INCLUDE_xTaskGetHandle                 0
 #define INCLUDE_xTaskResumeFromISR             1
 
-
 #define configISR_STACK_SIZE (configMINIMAL_STACK_SIZE * 2)
-#define configUSE_COMMON_INTERRUPT_ENTRY_POINT 1
-#define configSUPPORT_FPU 1
+#define configUSE_COMMON_INTERRUPT_ENTRY_POINT 0
+#define configSUPPORT_FPU 0
 #endif /* FREERTOS_CONFIG_H */

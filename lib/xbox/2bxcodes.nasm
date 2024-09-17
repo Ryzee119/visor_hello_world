@@ -321,5 +321,4 @@ xc_pci_write 0x80010010, 0xFD000000         ; set nv2a register base address
 xc_mem_write 0x00000000, 0xfc1000B8
 xc_mem_write 0x00000004, 0x90e0ffff
 
-; !!! First operand will be ignored. !!!
-xc_exit
+xc_opcode op_exit, 0x806, 0

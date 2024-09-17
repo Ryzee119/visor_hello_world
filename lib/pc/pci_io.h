@@ -1,3 +1,5 @@
+#ifndef PCI_IO_H
+#define PCI_IO_H
 
 #include "io.h"
 #include <stdint.h>
@@ -16,7 +18,6 @@
 #define PCI_COMMAND_SERR        0x100 /* Enable SERR */
 #define PCI_COMMAND_FAST_BACK   0x200 /* Enable back-to-back writes */
 
-// https://wiki.osdev.org/PCI
 // https://wiki.osdev.org/PCI
 typedef struct
 {
@@ -75,10 +76,7 @@ typedef struct
         } type_1;
     };
     // No type 2 on xbox?
-    uint8_t DeviceSpecific[108];
 } pci_header_t;
-
-#include <stdint.h>
 
 uint8_t pci_io_input_byte(uint8_t bus, uint8_t dev, uint8_t func, uint8_t reg);
 uint16_t pci_io_input_word(uint8_t bus, uint8_t dev, uint8_t func, uint8_t reg);
@@ -88,3 +86,5 @@ void pci_io_output_word(uint8_t bus, uint8_t dev, uint8_t func, uint8_t reg, uin
 void pci_io_output_dword(uint8_t bus, uint8_t dev, uint8_t func, uint8_t reg, uint32_t val);
 void pci_io_output_n(uint8_t bus, uint8_t dev, uint8_t func, uint32_t size_of_data, void *data);
 void pci_io_input_n(uint8_t bus, uint8_t dev, uint8_t func, uint32_t size_of_data, void *data);
+
+#endif
