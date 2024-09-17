@@ -6,7 +6,7 @@
 	url = https://github.com/Ryzee119/FreeRTOS-Kernel.git
 [submodule "lib/tinyusb"]
 	path = lib/tinyusb
-	url = https://github.com/hathach/tinyusb_src.git
+	url = https://github.com/Ryzee119/tinyusb_src.git
 [submodule "lib/tusb_xinput"]
 	path = lib/tusb_xinput
 	url = https://github.com/Ryzee119/tusb_xinput.git
