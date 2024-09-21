@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include <pc/cpu.h>
+#include <pc/dma8237.h>
 #include <pc/ia32_compact.h>
 #include <pc/ia32_msr.h>
 #include <pc/idt.h>
@@ -16,8 +17,8 @@
 #include <pc/microcode.h>
 #include <pc/pci_io.h>
 #include <pc/pic8259.h>
-#include <pc/dma8237.h>
 #include <pc/pit8254.h>
+#include <lz4/lib/lz4.h>
 
 #include "eeprom.h"
 #include "encoder.h"
@@ -28,9 +29,17 @@
 #include "timer.h"
 #include "video.h"
 
-#define XBOX_MIN(a, b) ((a) < (b) ? (a) : (b))
-#define XBOX_MAX(a, b) ((a) > (b) ? (a) : (b))
+#define XBOX_MIN(a, b)           ((a) < (b) ? (a) : (b))
+#define XBOX_MAX(a, b)           ((a) > (b) ? (a) : (b))
+#define XBOX_ARRAY_SIZE(a)       (sizeof(a) / sizeof((a)[0]))
 #define XBOX_CLAMP(low, x, high) (XBOX_MIN(XBOX_MAX(x, low), high))
+
+// #define XDEBUG
+#ifdef XDEBUG
+#define XPRINTF(...) printf(__VA_ARGS__)
+#else
+#define XPRINTF(...)
+#endif
 
 /* Main South Bridge Clocks */
 // Measured, looks like its derived from the 27Mhz crystal on the motherboard (27 / 2)
@@ -147,7 +156,7 @@
 #define XBOX_DMA1_PORT 0x00
 #define XBOX_DMA2_PORT 0xC0
 
-#define XBOX_PIT_CHANNEL0 0x40
+#define XBOX_PIT_CHANNEL0     0x40
 #define XBOX_PIT_COMMAND_PORT 0x43
 
 #define XBOX_ACPI_TIMER_PORT 0x8008 // Cromwell

@@ -13,12 +13,12 @@
 #endif
 
 #ifndef CFG_TUH_HUB
-#define CFG_TUH_HUB 5
+#define CFG_TUH_HUB 2
 #endif
 
 //Not including USB Hubs
 #ifndef CFG_TUH_DEVICE_MAX 
-#define CFG_TUH_DEVICE_MAX 8
+#define CFG_TUH_DEVICE_MAX 2
 #endif
 
 #ifndef TUP_OHCI_RHPORTS
@@ -26,7 +26,7 @@
 #endif
 
 #ifndef CFG_TUH_XINPUT
-#define CFG_TUH_XINPUT 4
+#define CFG_TUH_XINPUT 1
 #endif
 
 #ifndef CFG_TUH_MSC

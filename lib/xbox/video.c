@@ -5,6 +5,7 @@
 uint8_t current_encoder_address = 0;
 uint32_t current_output_mode_coding = 0;
 display_information_t xbox_display_info;
+void *current_frame_buffer = NULL;
 
 // https://github.com/xemu-project/xemu/blob/8707d2aa2626063cb67b5ea20382584a0848dce7/hw/xbox/nv2a/nv2a.c#L87
 typedef enum xbox_gpu_register
@@ -173,7 +174,7 @@ void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, voi
     xbox_gpu_output32(PFB, 0x200, 0x03070103);
     xbox_gpu_output32(PFB, 0x204, 0x11448000);
 
-    //printf("[GPU] Setting up display mode %08X\n", mode_coding);
+    //XPRINTF("[GPU] Setting up display mode %08X\n", mode_coding);
 
     current_output_mode_coding = mode_coding;
 
@@ -244,7 +245,7 @@ void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, voi
                 break;
         }
     }
-    //printf xbox_display_info
+    //XPRINTF xbox_display_info
 
     xbox_encoder_configure(mode_coding, &xbox_display_info);
 
@@ -297,7 +298,7 @@ void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, voi
                                 0x05, 0x06, 0x06, 0x07, 0x07, 0x08, 0x08, 0x09, 0x09, 0x0A, 0x0A,
                                 0x0B, 0x0B, 0x0C, 0x0C, 0x0D, 0x0D, 0x0E, 0x0E, 0x0F, 0x0F, 0x10,
                                 0x01, 0x11, 0x4A, 0x12, 0x0F, 0x13, 0x00, 0x14, 0x00, 0x20};
-    for (uint8_t i = 0; i < sizeof(vga_attr); i++) {
+    for (uint8_t i = 0; i < XBOX_ARRAY_SIZE(vga_attr); i++) {
         xbox_gpu_output08(PRMCIO, 0x3C0, vga_attr[i]);
     }
 
@@ -327,6 +328,7 @@ void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, voi
     xbox_timer_spin_wait(XBOX_TIMER_US_TO_TICKS(2));
 
     xbox_gpu_output32(PCRTC, 0x800, (uint32_t)frame_buffer);
+    current_frame_buffer = frame_buffer;
 
     // xbox_gpu_output_clut(0, 0, 0, 0);
 
@@ -336,21 +338,21 @@ void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, voi
     xbox_video_set_option(XBOX_VIDEO_OPTION_VIDEO_ENABLE, &temp);
 
 #if (0)
-    printf("Display Settings for mode %08x, bpp %d:\n", mode_coding, bpp);
-    printf("xbox_display_info.vdisplay_end: %d %08x\n", xbox_display_info.vdisplay_end, xbox_display_info.vdisplay_end);
-    printf("xbox_display_info.vtotal: %d %08x\n", xbox_display_info.vtotal, xbox_display_info.vtotal);
-    printf("xbox_display_info.vcrtc: %d %08x\n", xbox_display_info.vcrtc, xbox_display_info.vcrtc);
-    printf("xbox_display_info.vsync_start: %d %08x\n", xbox_display_info.vsync_start, xbox_display_info.vsync_start);
-    printf("xbox_display_info.vsync_end: %d %08x\n", xbox_display_info.vsync_end, xbox_display_info.vsync_end);
-    printf("xbox_display_info.vvalid_start: %d %08x\n", xbox_display_info.vvalid_start, xbox_display_info.vvalid_start);
-    printf("xbox_display_info.vvalid_end: %d %08x\n", xbox_display_info.vvalid_end, xbox_display_info.vvalid_end);
-    printf("xbox_display_info.hdisplay_end: %d %08x\n", xbox_display_info.hdisplay_end, xbox_display_info.hdisplay_end);
-    printf("xbox_display_info.htotal: %d %08x\n", xbox_display_info.htotal, xbox_display_info.htotal);
-    printf("xbox_display_info.hcrtc: %d %08x\n", xbox_display_info.hcrtc, xbox_display_info.hcrtc);
-    printf("xbox_display_info.hsync_start: %d %08x\n", xbox_display_info.hsync_start, xbox_display_info.hsync_start);
-    printf("xbox_display_info.hsync_end: %d %08x\n", xbox_display_info.hsync_end, xbox_display_info.hsync_end);
-    printf("xbox_display_info.hvalid_start: %d %08x\n", xbox_display_info.hvalid_start, xbox_display_info.hvalid_start);
-    printf("xbox_display_info.hvalid_end: %d %08x\n", xbox_display_info.hvalid_end, xbox_display_info.hvalid_end);
+    XPRINTF("Display Settings for mode %08x, bpp %d:\n", mode_coding, bpp);
+    XPRINTF("xbox_display_info.vdisplay_end: %d %08x\n", xbox_display_info.vdisplay_end, xbox_display_info.vdisplay_end);
+    XPRINTF("xbox_display_info.vtotal: %d %08x\n", xbox_display_info.vtotal, xbox_display_info.vtotal);
+    XPRINTF("xbox_display_info.vcrtc: %d %08x\n", xbox_display_info.vcrtc, xbox_display_info.vcrtc);
+    XPRINTF("xbox_display_info.vsync_start: %d %08x\n", xbox_display_info.vsync_start, xbox_display_info.vsync_start);
+    XPRINTF("xbox_display_info.vsync_end: %d %08x\n", xbox_display_info.vsync_end, xbox_display_info.vsync_end);
+    XPRINTF("xbox_display_info.vvalid_start: %d %08x\n", xbox_display_info.vvalid_start, xbox_display_info.vvalid_start);
+    XPRINTF("xbox_display_info.vvalid_end: %d %08x\n", xbox_display_info.vvalid_end, xbox_display_info.vvalid_end);
+    XPRINTF("xbox_display_info.hdisplay_end: %d %08x\n", xbox_display_info.hdisplay_end, xbox_display_info.hdisplay_end);
+    XPRINTF("xbox_display_info.htotal: %d %08x\n", xbox_display_info.htotal, xbox_display_info.htotal);
+    XPRINTF("xbox_display_info.hcrtc: %d %08x\n", xbox_display_info.hcrtc, xbox_display_info.hcrtc);
+    XPRINTF("xbox_display_info.hsync_start: %d %08x\n", xbox_display_info.hsync_start, xbox_display_info.hsync_start);
+    XPRINTF("xbox_display_info.hsync_end: %d %08x\n", xbox_display_info.hsync_end, xbox_display_info.hsync_end);
+    XPRINTF("xbox_display_info.hvalid_start: %d %08x\n", xbox_display_info.hvalid_start, xbox_display_info.hvalid_start);
+    XPRINTF("xbox_display_info.hvalid_end: %d %08x\n", xbox_display_info.hvalid_end, xbox_display_info.hvalid_end);
 #endif
 }
 
@@ -372,7 +374,7 @@ uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter)
 
     switch (option) {
         case XBOX_VIDEO_OPTION_VIDEO_ENABLE:
-            //printf("[VIDEO] Turning %s\n", (*parameter) ? "on" : "off");
+            //XPRINTF("[VIDEO] Turning %s\n", (*parameter) ? "on" : "off");
             // Switch it in gpu and at hardware level
             if (*parameter) {
                 xbox_gpu_set_output_enable(1);
@@ -410,6 +412,7 @@ uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter)
                 default:
                     return VIDEO_RETURN_ERROR;
             }
+            break;
         case XBOX_VIDEO_OPTION_VIDEO_FLICKER_FILTER:
             uint32_t flicker_level = *parameter; //FIXME C23 extension
             switch (current_encoder_address) {
@@ -433,6 +436,7 @@ uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter)
                 default:
                     return VIDEO_RETURN_ERROR;
             }
+            break;
         case XBOX_VIDEO_OPTION_VIDEO_SOFTEN_FILTER:
             switch (current_encoder_address) {
                 case XBOX_SMBUS_ADDRESS_ENCODER_XCALIBUR:
@@ -444,11 +448,17 @@ uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter)
                 default:
                     return VIDEO_RETURN_ERROR;
             }
+            break;
+        case XBOX_VIDEO_OPTION_FRAMEBUFFER:
+            xbox_gpu_output32(PCRTC, 0x800, (uint32_t)parameter);
+            current_frame_buffer = (void *)parameter;
+            break;
         default:
             return VIDEO_RETURN_ERROR;
 
             break;
     }
+    return VIDEO_RETURN_SUCCESS;
 }
 
 static VIDEO_MODE_SETTING video_modes[] = {
@@ -498,7 +508,7 @@ static VIDEO_MODE_SETTING video_modes[] = {
 };
 
 const VIDEO_MODE_SETTING *video_get_settings(uint32_t mode_coding) {
-    for (int i = 0; i < sizeof(video_modes) / sizeof(VIDEO_MODE_SETTING); i++) {
+    for (int i = 0; i < XBOX_ARRAY_SIZE(video_modes); i++) {
         if (video_modes[i].dwMode == mode_coding) {
             return &video_modes[i];
         }
@@ -507,8 +517,8 @@ const VIDEO_MODE_SETTING *video_get_settings(uint32_t mode_coding) {
 }
 
 void apply_all_video_modes(void *fb) {
-    for (int i = 0; i < sizeof(video_modes) / sizeof(VIDEO_MODE_SETTING); i++) {
-        printf("\r\n%d Mode: %08x, Width: %d, Height: %d, Refresh: %d, BPP: 32\r", i, video_modes[i].dwMode, video_modes[i].width, video_modes[i].height, video_modes[i].refresh);
+    for (int i = 0; i < XBOX_ARRAY_SIZE(video_modes); i++) {
+        XPRINTF("\r\n%d Mode: %08x, Width: %d, Height: %d, Refresh: %d, BPP: 32\r", i, video_modes[i].dwMode, video_modes[i].width, video_modes[i].height, video_modes[i].refresh);
         xbox_video_init(video_modes[i].dwMode, ARGB8888, fb);
     }
 }

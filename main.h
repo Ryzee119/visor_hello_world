@@ -27,5 +27,10 @@ int printf_r(const char *format, ...);
 
 void usb_init(void);
 void interrupts_init(void);
+int doom_entry();
+
+
+
+
 #endif
 

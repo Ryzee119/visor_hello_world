@@ -1,23 +1,23 @@
 {
-    "version": "2.0.0",
-    "tasks": [
+    "version": "0.2.0",
+    "configurations": [
         {
-            "label": "Run xemu",
-            "type": "shell",
-            "command": "xemu",
-            "args": [
-                "-device",
-                "lpc47m157",
-                "-serial",
-                "stdio",
-                "-bios",
-                "rom.bin"
+            "type": "cppdbg",
+   
+            "name": "Attach to xemu GDB Server",
+            "request": "attach",
+            "program": "${workspaceFolder}/build/rom.elf",
+            "MIMode": "gdb",
+            "miDebuggerServerAddress": "172.25.192.1:1234",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "setupCommands": [
+                {
+                    "description": "Set custom gdbinit file",
+                    "text": "source ${workspaceFolder}/.gdbinit",
+                    "ignoreFailures": false
+                }
             ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "problemMatcher": []
+            "useExtendedRemote": true,
         }
     ]
 }

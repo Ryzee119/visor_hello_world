@@ -10,25 +10,27 @@ def print_memory_usage(elf_path):
         stack_size = 0
         
         for section in elf.iter_sections():
-            name = section.name
-            size = section['sh_size']
-            flags = section['sh_flags']
+            sh_size = section['sh_size']
+            sh_flags = section['sh_flags']
             sh_type = section['sh_type']
             #sh_link = section['sh_link']
             #sh_info = section['sh_info']
 
-            if sh_type == 'SHT_PROGBITS':
-                memory_usage += size
+            if sh_type == 'SHT_PROGBITS' and not sh_flags & 0x8:  # SHF_ALLOC flag
+                memory_usage += sh_size
 
-            if '.heap' in name:
-                heap_size += size
+            if '.heap' in section.name:
+                heap_size += sh_size
 
-            if '.stack' in name:
-                stack_size += size
+            if '.stack' in section.name:
+                stack_size += sh_size
 
-        print(f"Availble Heap Memory: {round(heap_size/1024)} kB")
-        print(f"Available Stack Memory: {round(stack_size)} bytes")
-        print(f"ROM Usage: {round(memory_usage/1024)} kB ({round(memory_usage/1024/256*100)}%)")
+        print(f"Heap Memory: {round(heap_size/1024/1024, 3)} MB")
+        print(f"Stack Memory: {round(stack_size)} bytes")
+
+        memory_usage_kb = memory_usage/1024
+        memory_percent = memory_usage_kb/256
+        print(f"ROM: [{'='*round(memory_percent*16)}{'.'*(16-round(memory_percent*16))}] {round(memory_percent*100, 1)}% (used {round(memory_usage_kb, 3)} kB of 256 kB)")
 
     return memory_usage
 
@@ -36,7 +38,6 @@ def main():
     parser = argparse.ArgumentParser(description='Calculate memory usage of an ELF file.')
     parser.add_argument('elf_file', type=str, help='Path to the ELF file')
     args = parser.parse_args()
-    
     print_memory_usage(args.elf_file)
 
 if __name__ == "__main__":

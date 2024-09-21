@@ -12,3 +12,6 @@ References:
 * https://github.com/XboxDev/cromwell
 * https://github.com/mborgerson/xqemu-kernel
 * https://github.com/Ernegien/xdecode
+
+
+pip install objutils lz4 elftools

@@ -32,6 +32,63 @@ __attribute__((section(".boot_code"))) static void smc_io(uint8_t command, uint8
     return;
 }
 
+__attribute__((section(".boot_code"))) void pulse_hex(unsigned int line)
+{
+    unsigned int num = line;
+    char buffer[16];
+
+    if (num == 0) {
+        xbox_serial_putchar('0');
+        xbox_serial_putchar('\n');
+        return;
+    }
+
+    int i = 0;
+    while (num != 0) {
+        uint8_t digit = num % 16;
+        if (digit < 10) {
+            buffer[i++] = '0' + digit;
+        } else {
+            buffer[i++] = 'A' + (digit - 10);
+        }
+        num /= 16;
+    }
+
+    for (int j = i - 1; j >= 0; j--) {
+        xbox_serial_putchar(buffer[j]);
+    }
+    xbox_serial_putchar('\n');
+}
+
+__attribute__((section(".boot_code"))) void pulse(unsigned int line)
+{
+    static int init = 0;
+    if (!init) {
+        xbox_serial_init();
+        init = 1;
+    }
+    unsigned int num = line;
+    char buffer[16];
+
+    if (num == 0) {
+        xbox_serial_putchar('0');
+        xbox_serial_putchar('\n');
+        return;
+    }
+
+    int i = 0;
+    while (num != 0) {
+        // xbox_serial_putchar ('0'+ (num%10));
+        buffer[i++] = '0' + (num % 10);
+        num /= 10;
+    }
+
+    for (int j = i - 1; j >= 0; j--) {
+        xbox_serial_putchar(buffer[j]);
+    }
+    xbox_serial_putchar('\n');
+}
+
 __attribute__((section(".boot_code"))) void boot_pic_challenge_response(void)
 {
     uint8_t bC, bD, bE, bF;
@@ -60,6 +117,43 @@ __attribute__((section(".boot_code"))) void boot_pic_challenge_response(void)
     smc_io(0x20, SMBUS_WRITE, &w1);
     smc_io(0x21, SMBUS_WRITE, &w2);
     return;
+}
+
+__attribute__((section(".boot_code"))) void *boot_memset(void *dest, int c, size_t len)
+{
+    char *d = dest;
+    while (len--) {
+        *d++ = c;
+    }
+    return dest;
+}
+
+__attribute__((section(".boot_code"))) void *boot_memcpy(void *dest, const void *src, size_t len)
+{
+    char *d = dest;
+    const char *s = src;
+    while (len--) {
+        *d++ = *s++;
+    }
+    return dest;
+}
+
+__attribute__((section(".boot_code"))) void *boot_memmove(void *dest, const void *src, size_t len)
+{
+    char *d = dest;
+    const char *s = src;
+    if (d < s) {
+        while (len--) {
+            *d++ = *s++;
+        }
+    } else {
+        char *lasts = s + (len - 1);
+        char *lastd = d + (len - 1);
+        while (len--) {
+            *lastd-- = *lasts--;
+        }
+    }
+    return dest;
 }
 
 static void fill_rect_argb8888(void *fb, int fb_width, int fb_height, int x, int y, int w, int h, uint32_t argb)
@@ -115,12 +209,12 @@ extern void __libc_init_array(void);
 void boot(void)
 {
     // Calls functions defined with __attribute__((constructor))
-   __libc_init_array();
+    __libc_init_array();
 
     xbox_led_output(XLED_RED, XLED_RED, XLED_RED, XLED_RED);
 
     xbox_serial_init();
-    printf("Hello, World!\n");
+    XPRINTF("Hello, World!\n");
 
     cpu_disable_cache();
     cpu_update_microcode();
@@ -129,16 +223,16 @@ void boot(void)
     cpuid_eax_01 cpuid_info;
     cpu_read_cpuid(CPUID_VERSION_INFO, &cpuid_info.eax.flags, &cpuid_info.ebx.flags, &cpuid_info.ecx.flags, &cpuid_info.edx.flags);
 
-    printf("CPU Family: %d\n", cpuid_info.eax.family_id);
-    printf("CPU Model: %d\n", cpuid_info.eax.model);
-    printf("CPU Stepping: %d\n", cpuid_info.eax.stepping_id);
-    printf("CPU Type: %d\n", cpuid_info.eax.processor_type);
-    printf("CPU Extended Family: %d\n", cpuid_info.eax.extended_family_id);
-    printf("CPU Extended Model: %d\n", cpuid_info.eax.extended_model_id);
+    XPRINTF("CPU Family: %d\n", cpuid_info.eax.family_id);
+    XPRINTF("CPU Model: %d\n", cpuid_info.eax.model);
+    XPRINTF("CPU Stepping: %d\n", cpuid_info.eax.stepping_id);
+    XPRINTF("CPU Type: %d\n", cpuid_info.eax.processor_type);
+    XPRINTF("CPU Extended Family: %d\n", cpuid_info.eax.extended_family_id);
+    XPRINTF("CPU Extended Model: %d\n", cpuid_info.eax.extended_model_id);
 
     // Feature bits from edx and ecx registers
-    printf("Feature Bits (EDX): 0x%08x\n", cpuid_info.edx.flags);
-    printf("Feature Bits (ECX): 0x%08x\n", cpuid_info.ecx.flags);
+    XPRINTF("Feature Bits (EDX): 0x%08x\n", cpuid_info.edx.flags);
+    XPRINTF("Feature Bits (ECX): 0x%08x\n", cpuid_info.ecx.flags);
 
     xbox_pci_init();
 
@@ -200,7 +294,7 @@ void boot(void)
 #endif
 
     // Write the default handlers to the IDT
-    //xbox_interrupt_configure();
+    // xbox_interrupt_configure();
 
     // Enable the 8259 Interrupt Controllers (Master and Slave)
     // All IRQs initially masked except IRQ2 (To ensure PIC2 IRQs work)
@@ -268,8 +362,8 @@ void boot(void)
     uint8_t temp1, temp2;
     xbox_smbus_input_byte(XBOX_SMBUS_ADDRESS_TEMP, 0x00, &temp1);
     xbox_smbus_input_byte(XBOX_SMBUS_ADDRESS_TEMP, 0x01, &temp2);
-    printf("Temperature 1: %d\n", temp1);
-    printf("Temperature 2: %d\n", temp2);
+    XPRINTF("Temperature 1: %d\n", temp1);
+    XPRINTF("Temperature 2: %d\n", temp2);
 
     xbox_led_output(XLED_ORANGE, XLED_ORANGE, XLED_ORANGE, XLED_ORANGE);
 

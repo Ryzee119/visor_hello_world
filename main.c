@@ -4,6 +4,7 @@ static uint8_t freertos_running = 0;
 extern void vPortYieldCall(void);
 extern void vPortTimerHandler(void);
 
+// System wide yield function that spin waits or yields if possible
 void system_yield(uint32_t ms)
 {
     if (freertos_running) {
@@ -35,12 +36,15 @@ static void freertos_entry(void *parameters)
 
     while (1) {
         vTaskDelay(portMAX_DELAY);
+       // doom_entry();
+        taskYIELD();
     }
 }
 
 int main(void)
 {
-    // We create this task statically. FreeRTOS calls freertos_entry immediately after vTaskStartScheduler without any context switch
+    // We create this task statically; should always succeed.
+    // FreeRTOS calls freertos_entry immediately after vTaskStartScheduler without any tick
     // which is good because we can setup the PIC timer with FreeRTOS context before the scheduler actually starts.
     static StaticTask_t freertos_entry_task;
     static StackType_t freertos_entry_stack[configMINIMAL_STACK_SIZE];

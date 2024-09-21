@@ -78,20 +78,20 @@ int8_t xbox_smbus_io(uint8_t address, uint8_t command, void *data, uint8_t data_
     if (status & SMBUS_STATUS_ERROR) {
         spinlock_release(&lock);
 
-        printf("[SMBUS] ERROR Address %02x, Command: %02x Error: %04X: ", address, command, status);
+        XPRINTF("[SMBUS] ERROR Address %02x, Command: %02x Error: %04X: ", address, command, status);
         if (status & SMBUS_STATUS_ABORT) {
-            printf("Aborted ");
+            XPRINTF("Aborted ");
         }
         if (status & SMBUS_STATUS_COLLISION) {
-            printf("Collision ");
+            XPRINTF("Collision ");
         }
         if (status & SMBUS_STATUS_PROTOCOL_ERROR) {
-            printf("Protocol Error ");
+            XPRINTF("Protocol Error ");
         }
         if (status & SMBUS_STATUS_TIMEOUT) {
-            printf("Timeout ");
+            XPRINTF("Timeout ");
         }
-        printf("\n");
+        XPRINTF("\n");
         return SMBUS_RETURN_ERROR;
     }
 

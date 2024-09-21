@@ -10,3 +10,12 @@
 [submodule "lib/tusb_xinput"]
 	path = lib/tusb_xinput
 	url = https://github.com/Ryzee119/tusb_xinput.git
+[submodule "lib/PureDOOM"]
+	path = lib/PureDOOM
+	url = https://github.com/Daivuk/PureDOOM
+[submodule "lib/lz4"]
+	path = lib/lz4
+	url = https://github.com/lz4/lz4.git
+[submodule "lib/arith64"]
+	path = lib/arith64
+	url = https://github.com/glitchub/arith64.git

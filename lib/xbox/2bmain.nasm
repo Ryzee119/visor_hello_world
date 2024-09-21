@@ -1,24 +1,26 @@
-; https://github.com/XboxDev/cromwell/blob/master/boot_rom/2bBootStartup.S
-
-extern __user_text_base
-extern __user_text_source
+extern __user_text_vma
 extern __user_text_size
-extern __user_data_base
-extern __user_data_source
+
+extern __user_data_vma
 extern __user_data_size
-extern __user_rodata_base
-extern __user_rodata_source
+
+extern __user_rodata_vma
 extern __user_rodata_size
 
-extern __boot_code_base
-extern __boot_code_source
+extern __boot_code_vma
+extern __boot_code_lma
 extern __boot_code_size
 
 extern __bss_dsize
 extern __bss_start
 extern __stack
-extern boot
+
+extern __compressed_data_lma;
+extern __uncompressed_data_size;
+
+extern LZ4_decompress_fast
 extern boot_pic_challenge_response
+extern boot
 
 %macro WR_MSR 3 ; addr, hi, lo
     mov ecx, %1
@@ -113,7 +115,7 @@ section .visor_entry
 
     ; 0xfff00000 +1M WP (Flash)
     ; 1 MB region starting at address 0xfff00000 to be cached as Write-Protected (WP) memory
-    WR_MSR 0x204, 0x00000000, 0xFff00000 ; Base
+    WR_MSR 0x204, 0x00000000, 0xfff00000 ; Base
     WR_MSR 0x205, 0x0000000f, 0xfff00800 ; Mask
 
     ; Clear other MTRRs
@@ -139,8 +141,8 @@ section .visor_entry
 
     ; Copy initial boot code to RAM
     cld
-    mov     edi, __boot_code_base
-    mov     esi, __boot_code_source
+    mov     edi, __boot_code_vma
+    mov     esi, __boot_code_lma
     mov     ecx, __boot_code_size
     shr     ecx, 2
     rep     movsd
@@ -156,12 +158,6 @@ section .visor_entry
 
     ; Jump to initial boot code
     jmp boot_entry;
-
-; We're in RAM now
-section .bss
-; IDT in BSS as we just want some reserved space to setup later
-idt_table:
-    resq 256
 
 section .boot_code
 align 16
@@ -224,24 +220,38 @@ reload_segment_selectors:
     ; into RAM
     call boot_pic_challenge_response
 
-    ; Copy rest of code to RAM
-    cld
-    mov     edi, __user_text_base
-    mov     esi, __user_text_source
-    mov     ecx, __user_text_size
-    shr     ecx, 2
-    rep     movsd
+    ; Decompress user code directly into RAM starting at __user_text_vma
+    push dword [__uncompressed_data_size]
+    push dword __user_text_vma
+    push dword __compressed_data_lma
+    call LZ4_decompress_fast
+    add esp, 16
 
-    mov     edi, __user_data_base
-    mov     esi, __user_data_source
+    ; Copy data section
+    mov     edi, __user_data_vma
+    mov     esi, __user_text_vma
+    add     esi, __user_text_size
     mov     ecx, __user_data_size
     shr     ecx, 2
     rep     movsd
 
-    mov     edi, __user_rodata_base
-    mov     esi, __user_rodata_source
+    ; Copy rodata section
+    mov     edi, __user_rodata_vma
+    mov     esi, __user_text_vma
+    add     esi, __user_text_size
+    add     esi, __user_data_size
     mov     ecx, __user_rodata_size
     shr     ecx, 2
     rep     movsd
 
+    ; Jump to C code
     jmp boot
+
+
+; Reserved space for compressed data filled during compilation
+section .compressed
+    dq 0
+
+section .bss
+idt_table:
+    resq 256

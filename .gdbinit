@@ -1,8 +1,28 @@
-add-auto-load-safe-path .
-set architecture i386
 set disassembly-flavor intel
-symbol-file build/rom.elf
+set architecture i386
+set pagination off
+set print pretty on
 
+define hook-stop
+  x/i $pc
+end
+
+define hook-run
+  info proc mappings
+end
+
+define regs
+  info registers
+  info float
+  info all-registers
+end
+
+define dasm
+  disassemble $pc, $pc+40
+end
+
+symbol-file build/rom.elf
+file build/rom.elf
 
 # If you're debugging an nxdk-built XBE, you can uncomment the following line.
 # You'll need to double-check the .text address though.
@@ -12,5 +32,6 @@ symbol-file build/rom.elf
 # a substitution path for GDB to locate the source files.
 # set substitute-path /work /path/to/src/
 
-target remote 127.0.0.1:1234
-b visor_entry
+target remote 172.25.192.1:1234
+b LZ4_decompress_safe
+continue

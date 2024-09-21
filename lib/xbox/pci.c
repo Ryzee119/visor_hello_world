@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+// https://archive.org/details/amd-756
 
 #include "xbox.h"
 
@@ -176,13 +177,13 @@ static void enumerate_pci_devices()
                     continue;
                 }
 
-                printf("Bus: %u, Device: %u, Function: %u\n", bus, dev, func);
-                printf("  Vendor ID: 0x%04X\n", vendor_id);
-                printf("  Device ID: 0x%04X\n", device_id);
+                XPRINTF("Bus: %u, Device: %u, Function: %u\n", bus, dev, func);
+                XPRINTF("  Vendor ID: 0x%04X\n", vendor_id);
+                XPRINTF("  Device ID: 0x%04X\n", device_id);
 
                 for (int i = 0; i < 0xff; i += 4) {
                     uint32_t data = pci_io_input_dword(bus, dev, func, i);
-                    printf("  %02X.%02x:%01x.%02x: %08X\n", bus, dev, func, i, data);
+                    XPRINTF("  %02X.%02x:%01x.%02x: %08X\n", bus, dev, func, i, data);
                 }
             }
         }
@@ -200,7 +201,7 @@ void ReadPciConfigSpace(uint8_t bus, uint8_t device, uint8_t function)
         uint32_t address = (1 << 31) | (bus << 16) | (device << 11) | (function << 8) | (offset);
         uint32_t value = pci_io_input_dword(bus, device, function, offset);
         // Print the 4 bytes read from the PCI configuration space
-        printf("Bus: %02x, Device: %02x, Function: %02x, Offset: %02x, Data: %08x\r\n", bus, device, function, offset, value);
+        XPRINTF("Bus: %02x, Device: %02x, Function: %02x, Offset: %02x, Data: %08x\r\n", bus, device, function, offset, value);
         // xbox_timer_spin_wait(100 * xbox_timer_query_performance_frequency() / 1000);
     }
 }

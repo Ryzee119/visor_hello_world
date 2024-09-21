@@ -1,7 +1,7 @@
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_PROCESSOR i686)
 set(CMAKE_C_COMPILER clang)
-set(CMAKE_ASM_COMPILER gcc) #FreeRTOS assembly files need GCC
+set(CMAKE_ASM_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
 set(CMAKE_OBJCOPY objcopy)
 
@@ -25,7 +25,8 @@ set(CMAKE_C_FLAGS "\
     -Wall -target i386-elf \
     -m32 -march=pentium -mfpmath=sse -msse \
     -fno-stack-protector -ffreestanding -fno-pic -fno-common \
-    -nostdlib -fno-builtin -nodefaultlibs -static -Wno-c23-extensions -Wno-ignored-optimization-argument \
+    -nostdlib -fno-builtin -nodefaultlibs -static -Wno-c23-extensions \
+    -Wno-ignored-optimization-argument -Wno-implicit-function-declaration \
 ")
 
 set(CMAKE_ASM_FLAGS "\
@@ -35,18 +36,24 @@ set(CMAKE_ASM_FLAGS "\
 # Use our linker script
 set(CMAKE_EXE_LINKER_FLAGS "-T${CMAKE_SOURCE_DIR}/rom.ld")
 
-# Build picolibc
-set(_FORMAT_DEFAULT_DOUBLE ON)
+# picolibc
+set(_FORMAT_DEFAULT_INTEGER ON)
+# set(_FORMAT_DEFAULT_DOUBLE ON)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/picolibc)
 
-# Build FreeRTOS
+#arith64 - prevents having to link libgcc for a couple functions
+add_library(arith64 INTERFACE)
+set(ARITH64_DIR ${CMAKE_CURRENT_LIST_DIR}/lib/arith64)
+target_sources(arith64 INTERFACE ${ARITH64_DIR}/arith64.c)
+
+# FreeRTOS
 set(FREERTOS_PORT "GCC_IA32_FLAT")
-set(FREERTOS_HEAP "3")
+set(FREERTOS_HEAP "3") # Wraps malloc/free
 add_library(freertos_config INTERFACE)
 target_include_directories(freertos_config SYSTEM INTERFACE config_freertos)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/freertos_kernel freertos_kernel)
 
-# Build TinyUSB
+# TinyUSB
 add_library(tinyusb_config INTERFACE)
 target_compile_definitions(tinyusb_config INTERFACE TUH_OPT_RHPORT=0 CFG_TUSB_MCU=0 CFG_TUSB_DEBUG_PRINTF=printf_r)
 target_include_directories(tinyusb_config SYSTEM INTERFACE ${CMAKE_CURRENT_LIST_DIR}/config_tinyusb)
@@ -60,6 +67,16 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/tusb_xinput xinput_host)
 add_library(fatfs_config INTERFACE)
 target_include_directories(fatfs_config SYSTEM INTERFACE ${CMAKE_CURRENT_LIST_DIR}/config_fatfs)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/fatfs fatfs)
+
+# LZ4 - called during boot, so no libc functions. Make freestanding and use our own memcpy/memset/memmove
+set (LZ4_BUNDLED_MODE ON)
+set (LZ4_BUILD_CLI OFF)
+set (LZ4_FREESTANDING ON)
+add_compile_definitions(LZ4_STATIC_LINKING_ONLY_DISABLE_MEMORY_ALLOCATION
+                        LZ4_memcpy=boot_memcpy
+                        LZ4_memset=boot_memset
+                        LZ4_memmove=boot_memmove)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/lz4/build/cmake lz4)
 
 # Build our xbox specific code
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/xbox xbox)
@@ -81,13 +98,25 @@ set_target_properties(${OUTPUT_NAME} PROPERTIES
 )
 
 # Link the libraries
-target_link_libraries(${OUTPUT_NAME} PRIVATE c gcc xbox pc freertos_kernel tinyusb xinput_host fatfs)
+target_link_libraries(${OUTPUT_NAME} PRIVATE c arith64 freertos_kernel pc xbox tinyusb xinput_host fatfs lz4)
 
 # Create a binary from the elf
 add_custom_command(TARGET ${OUTPUT_NAME} POST_BUILD
+    COMMAND echo "Compressing ROM sections..."
+    COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/scripts/compress_rom.py
+                                 ${CMAKE_BINARY_DIR}/${OUTPUT_NAME} ${CMAKE_BINARY_DIR}/compressed.bin
+
+    # Push the compressed blob back into the elf
+    COMMAND ${CMAKE_OBJCOPY} --update-section .compressed=${CMAKE_BINARY_DIR}/compressed.bin ${OUTPUT_NAME}
+
+    # These sections are now compressed, so we can remove them from the final binary as they are decompressed at runtime
+    COMMAND ${CMAKE_OBJCOPY} --remove-section=.text --remove-section=.data --remove-section=.rodata ${OUTPUT_NAME}
+
+    # Calculate the final size ROM usage
     COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/scripts/calculate_usage.py ${CMAKE_BINARY_DIR}/${OUTPUT_NAME}
-    COMMAND ${CMAKE_OBJCOPY} --output-target=binary --pad-to 0x40000 --gap-fill 0xFF $<TARGET_FILE:${OUTPUT_NAME}> ${CMAKE_BINARY_DIR}/rom.bin
-    COMMENT "Converting ELF to binary"
+
+    # Convert the elf to a binary 0x100000000 is 256kB from ROM base which makes 256Kb output size
+    COMMAND ${CMAKE_OBJCOPY} -O binary --pad-to 0x100000000 --gap-fill 0xFF ${OUTPUT_NAME} ${CMAKE_BINARY_DIR}/rom.bin
 )
 
 #add_custom_target(apply_patch ALL
@@ -112,4 +141,5 @@ target_sources(${OUTPUT_NAME} PRIVATE
     debug.c
     interrupts.c
     fileio_usb.c
+    doom.c
 )
