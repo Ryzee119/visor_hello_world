@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <math.h>
 
 #include <FreeRTOS.h>
 #include <freertos_irq.h>
@@ -13,6 +14,7 @@
 #include <timers.h>
 
 #include <tinyusb/src/tusb.h>
+#include <tusb_xinput/xinput_host.h>
 #include <xbox/xbox.h>
 #include <fatfs/ff.h>
 #include <fatfs/diskio.h>

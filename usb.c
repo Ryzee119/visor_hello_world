@@ -1,8 +1,4 @@
-#include <FreeRTOS.h>
-#include <tusb.h>
-#include "xinput_host.h"
-#include <xbox/xbox.h>
-
+#include "main.h"
 void tusb_host_task(void *parameters)
 {
     (void)parameters;
@@ -19,7 +15,7 @@ void usb0_handler()
 
 void usb_init()
 {
-    xTaskCreate(tusb_host_task, "tusb_host_task", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
+    xTaskCreate(tusb_host_task, "tusb_host_task", configMINIMAL_STACK_SIZE, NULL, THREAD_PRIORITY_NORMAL, NULL);
 }
 
 void hcd_int_enable(uint8_t rhport)
@@ -47,6 +43,7 @@ usbh_class_driver_t const* usbh_app_driver_get_cb(uint8_t* driver_count){
     return &usbh_xinput_driver;
 }
 
+void dooom_new_input(uint16_t buttons, int16_t lx, int16_t ly);
 void tuh_xinput_report_received_cb(uint8_t dev_addr, uint8_t instance, xinputh_interface_t const* xid_itf, uint16_t len)
 {
     const xinput_gamepad_t *p = &xid_itf->pad;
@@ -70,6 +67,7 @@ void tuh_xinput_report_received_cb(uint8_t dev_addr, uint8_t instance, xinputh_i
 
             //How to check specific buttons
            // if (p->wButtons & XINPUT_GAMEPAD_A) TU_LOG1("You are pressing A\n");
+           dooom_new_input(p->wButtons, p->sThumbLX, p->sThumbLY);
         }
     }
     tuh_xinput_receive_report(dev_addr, instance);

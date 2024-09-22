@@ -37,6 +37,7 @@ void interrupts_init()
 }
 
 // Function to print IDT entries
+#if (0)
 static void print_idt_entries()
 {
     IDTPointer_t idt_reg;
@@ -60,3 +61,4 @@ static void print_idt_entries()
         printf("  Type/Attr: 0x%02x\n", entry.ucFlags);
     }
 }
+#endif

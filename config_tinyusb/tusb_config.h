@@ -33,4 +33,8 @@
 #define CFG_TUH_MSC 1
 #endif
 
+#ifndef CFG_TUH_TASK_QUEUE_SZ
+#define CFG_TUH_TASK_QUEUE_SZ 256
+#endif
+
 #define CFG_TUSB_DEBUG_PRINTF printf_r

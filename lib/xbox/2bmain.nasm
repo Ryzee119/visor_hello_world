@@ -163,8 +163,8 @@ section .boot_code
 align 16
 gdt_table:
     dq 0x0000000000000000  ; Dummy
-    dq 0x00CF9B000000FFFF  ; 0x0008 code32 4G
-    dq 0x00CF93000000FFFF  ; 0x0010 data32 4G
+    dq 0x00CF9B000000FFFF  ; 0x0008 code32
+    dq 0x00CF93000000FFFF  ; 0x0010 data32
 
 gdt_desc:
     dw 24-1                ; Limit (size of gdt_table - 1)
@@ -177,15 +177,15 @@ idt_desc:
     dw 0x00;
 
 boot_entry:
-    ; Ensure interrupts are disabled to update gdt
+    ; Ensure interrupts are disabled to update gdt/idt
     cli
 
-    ; Set the Global Descriptor Table
+    ; Set the Global Descriptor Table and Interrupt Descriptor Table
     lgdt [gdt_desc]
     lidt [idt_desc]
 
-    xor eax, eax      ; Clear EAX register, setting it to zero
-    lldt ax           ; Load the Local Descriptor Table (LDT) register with the value in AX
+    xor eax, eax
+    lldt ax
 
     ; As we changed gdt while in protected mode, we need to reload the code segment selector
     ; this is done by doing a long jump with the code32 offset
@@ -216,20 +216,27 @@ reload_segment_selectors:
     mov     dx, 0x61
     out     dx, al
     
-    ; Need to do this quickly after boot, so we do it before we copy user code 
+    ; Need to do this quickly after boot, so we do it before we decompress and copy user code 
     ; into RAM
     call boot_pic_challenge_response
 
-    ; Decompress user code directly into RAM starting at __user_text_vma
+    ; Decompress user code directly into RAM 0x3C00000 is at ~60MB its plenty of space we know is free
     push dword [__uncompressed_data_size]
-    push dword __user_text_vma
+    push dword 0x3C00000
     push dword __compressed_data_lma
     call LZ4_decompress_fast
     add esp, 16
 
+    ; Copy text section
+    mov     edi, __user_text_vma
+    mov     esi, 0x3C00000 ; 0x3C00000 + __user_text_size
+    mov     ecx, __user_text_size
+    shr     ecx, 2
+    rep     movsd
+
     ; Copy data section
     mov     edi, __user_data_vma
-    mov     esi, __user_text_vma
+    mov     esi, 0x3C00000
     add     esi, __user_text_size
     mov     ecx, __user_data_size
     shr     ecx, 2
@@ -237,12 +244,19 @@ reload_segment_selectors:
 
     ; Copy rodata section
     mov     edi, __user_rodata_vma
-    mov     esi, __user_text_vma
+    mov     esi, 0x3C00000 ; 0x3C00000 + __user_text_size + __user_data_size
     add     esi, __user_text_size
     add     esi, __user_data_size
     mov     ecx, __user_rodata_size
     shr     ecx, 2
     rep     movsd
+
+    ; Enable Floating Point
+    mov eax, cr4
+    or  eax, (1<<9 | 1<<10)
+    mov cr4, eax
+    clts
+    fninit
 
     ; Jump to C code
     jmp boot

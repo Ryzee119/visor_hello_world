@@ -22,8 +22,8 @@ set(OUTPUT_NAME "rom.elf")
 
 # Set the compiler flags for clang
 set(CMAKE_C_FLAGS "\
-    -Wall -target i386-elf \
-    -m32 -march=pentium -mfpmath=sse -msse \
+    -Wall -target i386-elf -g \
+    -m32 -march=pentium -mfpmath=sse -msse -mmmx \
     -fno-stack-protector -ffreestanding -fno-pic -fno-common \
     -nostdlib -fno-builtin -nodefaultlibs -static -Wno-c23-extensions \
     -Wno-ignored-optimization-argument -Wno-implicit-function-declaration \
@@ -35,6 +35,9 @@ set(CMAKE_ASM_FLAGS "\
 
 # Use our linker script
 set(CMAKE_EXE_LINKER_FLAGS "-T${CMAKE_SOURCE_DIR}/rom.ld")
+
+#define _SOFT_FLOAT
+#add_compile_definitions(_SOFT_FLOAT)
 
 # picolibc
 set(_FORMAT_DEFAULT_INTEGER ON)

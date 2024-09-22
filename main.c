@@ -14,6 +14,14 @@ void system_yield(uint32_t ms)
     }
 }
 
+
+static void doom_task(void *parameters) {
+    while (1) {
+        vTaskDelay(3000);
+        doom_entry();
+    }
+}
+
 static void freertos_entry(void *parameters)
 {
     (void)parameters;
@@ -34,10 +42,10 @@ static void freertos_entry(void *parameters)
     interrupts_init();
     usb_init();
 
+    xTaskCreate(doom_task, "Doom", 256*1024, NULL, THREAD_PRIORITY_NORMAL, NULL);
+
     while (1) {
         vTaskDelay(portMAX_DELAY);
-       // doom_entry();
-        taskYIELD();
     }
 }
 
@@ -48,7 +56,9 @@ int main(void)
     // which is good because we can setup the PIC timer with FreeRTOS context before the scheduler actually starts.
     static StaticTask_t freertos_entry_task;
     static StackType_t freertos_entry_stack[configMINIMAL_STACK_SIZE];
-    xTaskCreateStatic(freertos_entry, "Entry", configMINIMAL_STACK_SIZE, NULL, THREAD_PRIORITY_LOWEST, freertos_entry_stack, &freertos_entry_task);
+    xTaskCreateStatic(freertos_entry, "Entry", configMINIMAL_STACK_SIZE, NULL, THREAD_PRIORITY_NORMAL, freertos_entry_stack, &freertos_entry_task);
+
+    
 
     vTaskStartScheduler();
 

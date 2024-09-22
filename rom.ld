@@ -58,13 +58,13 @@ SECTIONS {
         KEEP(*(SORT_BY_INIT_PRIORITY(.fini_array.*) SORT_BY_INIT_PRIORITY(.dtors.*)))
         KEEP(*(.fini_array .dtors))
         PROVIDE_HIDDEN(__fini_array_end = .);
-    } > RAM AT> ROM
+    } > RAM
 
     .data : {
         . = ALIGN(32);
         *(.data)
         *(.data.*)
-    } > RAM AT> ROM
+    } > RAM
 
     .rodata : {
         . = ALIGN(32);
@@ -72,7 +72,7 @@ SECTIONS {
         *(.rdata.*)
         *(.rodata)
         *(.rodata.*)
-    } > RAM AT> ROM
+    } > RAM
 
     .bss (NOLOAD) : {
         __bss_start = .;

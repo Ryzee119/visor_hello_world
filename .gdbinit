@@ -32,6 +32,7 @@ file build/rom.elf
 # a substitution path for GDB to locate the source files.
 # set substitute-path /work /path/to/src/
 
-target remote 172.25.192.1:1234
-b LZ4_decompress_safe
+#172.25.192.1
+target remote localhost:1234
+b reload_segment_selectors
 continue

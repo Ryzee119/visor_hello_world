@@ -58,6 +58,8 @@
         "limits.h": "c",
         "lz4hc.h": "c",
         "lz4.h": "c",
-        "assert.h": "c"
+        "assert.h": "c",
+        "cstddef": "c",
+        "freertos_irq.h": "c"
     }
 }
