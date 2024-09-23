@@ -1,7 +1,7 @@
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_PROCESSOR i686)
 set(CMAKE_C_COMPILER clang)
-set(CMAKE_ASM_COMPILER clang)
+set(CMAKE_ASM_COMPILER gcc)
 set(CMAKE_CXX_COMPILER clang++)
 set(CMAKE_OBJCOPY objcopy)
 
@@ -75,6 +75,7 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/fatfs fatfs)
 set (LZ4_BUNDLED_MODE ON)
 set (LZ4_BUILD_CLI OFF)
 set (LZ4_FREESTANDING ON)
+set (LZ4_BUILD_LEGACY_LZ4C OFF)
 add_compile_definitions(LZ4_STATIC_LINKING_ONLY_DISABLE_MEMORY_ALLOCATION
                         LZ4_memcpy=boot_memcpy
                         LZ4_memset=boot_memset

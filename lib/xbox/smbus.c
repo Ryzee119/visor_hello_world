@@ -77,7 +77,7 @@ int8_t xbox_smbus_io(uint8_t address, uint8_t command, void *data, uint8_t data_
 
     if (status & SMBUS_STATUS_ERROR) {
         spinlock_release(&lock);
-
+#if (0)
         XPRINTF("[SMBUS] ERROR Address %02x, Command: %02x Error: %04X: ", address, command, status);
         if (status & SMBUS_STATUS_ABORT) {
             XPRINTF("Aborted ");
@@ -92,6 +92,7 @@ int8_t xbox_smbus_io(uint8_t address, uint8_t command, void *data, uint8_t data_
             XPRINTF("Timeout ");
         }
         XPRINTF("\n");
+#endif
         return SMBUS_RETURN_ERROR;
     }
 

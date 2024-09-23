@@ -248,18 +248,11 @@ int doom_entry(const char *wad_path)
             printf_r("Failed to open WAD file\n");
             return -1;
         }
-
         cached_wad_size = f_size(&wad_file);
         cached_wad_data = pvPortMalloc(cached_wad_size);
-        const uint32_t chunk_size = cached_wad_size / 16;
-        for (uint32_t i = 0; i < cached_wad_size; i += chunk_size) {
-            uint32_t remaining = cached_wad_size - i;
-            uint32_t read_len = remaining > chunk_size ? chunk_size : remaining;
-            if (f_read(&wad_file, &cached_wad_data[i], read_len, NULL) != FR_OK) {
-                printf_r("Failed to read WAD file\n");
-                return -1;
-            }
-            printf(".");
+        if (f_read(&wad_file, cached_wad_data, cached_wad_size, NULL) != FR_OK) {
+            printf_r("Failed to read WAD file\n");
+            return -1;
         }
         f_close(&wad_file);
     }
@@ -282,7 +275,8 @@ int doom_entry(const char *wad_path)
         doom_update();
 
         // The doom framebuffer is palette indexed at 320x200.
-        // We scale by 2 so it is 640x400 and apply the palette  to convert to aARGB8888.
+        // We scale by 2 so it is 640x400 and apply the palette to convert to ARGB8888.
+        // FIXME overscan
         extern unsigned char screen_palette[256 * 3];
         uint8_t *indexed_framebuffer = (uint8_t *)doom_get_framebuffer(1);
         uint32_t *screen_buffer_ptr = final_screen_buffer;

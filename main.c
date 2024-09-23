@@ -24,13 +24,13 @@ static void doom_task(void *parameters)
         {
             FILINFO fno;
             DIR dir;
-            FRESULT res = f_opendir(&dir, "0:");
+            FRESULT res = f_opendir(&dir, "");
             if (res != FR_OK) {
                 printf_r("[DOOM] f_opendir failed with error %d\n", res);
                 continue;
             }
 
-            printf_r("[DOOM] Found WAD files:\n");
+            printf_r("[DOOM] Reading files on USB\n");
             for (;;) {
                 res = f_readdir(&dir, &fno);
                 if (res != FR_OK || fno.fname[0] == 0) {
@@ -52,6 +52,8 @@ static void freertos_entry(void *parameters)
     (void)parameters;
     printf("FreeRTOS entry\n");
 
+    xbox_led_output(XLED_ORANGE, XLED_RED, XLED_RED, XLED_RED);
+
     // FreeRTOS x86 port uses the LAPIC timer. This must be used in-conjunction with the IOAPIC interrupt controller.
     // Although the xbox should have both of these peripherals, I could not get the IOAPIC to work. I suspect there is
     // some PCI address space write to enable it (where!?). Also APU overlays IOAPIC address space (fixable).
@@ -67,6 +69,26 @@ static void freertos_entry(void *parameters)
     display_init();
     interrupts_init();
     usb_init();
+
+    cpuid_eax_01 cpuid_info;
+    cpu_read_cpuid(CPUID_VERSION_INFO, &cpuid_info.eax.flags, &cpuid_info.ebx.flags, &cpuid_info.ecx.flags, &cpuid_info.edx.flags);
+
+    printf_r("[CPU] Family: %d\n", cpuid_info.eax.family_id);
+    printf_r("[CPU] Model: %d\n", cpuid_info.eax.model);
+    printf_r("[CPU] Stepping: %d\n", cpuid_info.eax.stepping_id);
+    printf_r("[CPU] Type: %d\n", cpuid_info.eax.processor_type);
+    printf_r("[CPU] Extended Family: %d\n", cpuid_info.eax.extended_family_id);
+    printf_r("[CPU] Extended Model: %d\n", cpuid_info.eax.extended_model_id);
+    printf_r("[CPU] Feature Bits (EDX): 0x%08x\n", cpuid_info.edx.flags);
+    printf_r("[CPU] Feature Bits (ECX): 0x%08x\n", cpuid_info.ecx.flags);
+
+    uint8_t temp1, temp2;
+    xbox_smbus_input_byte(XBOX_SMBUS_ADDRESS_TEMP, 0x00, &temp1);
+    xbox_smbus_input_byte(XBOX_SMBUS_ADDRESS_TEMP, 0x01, &temp2);
+    printf_r("[SYS] CPU: %d C\n", temp1);
+    printf_r("[SYS] MB: %d C\n", temp2);
+
+    xbox_led_output(XLED_GREEN, XLED_GREEN, XLED_GREEN, XLED_GREEN);
 
     doom_mutex = xSemaphoreCreateBinary();
     xTaskCreate(doom_task, "Doom!", configMINIMAL_STACK_SIZE, NULL, THREAD_PRIORITY_NORMAL, NULL);

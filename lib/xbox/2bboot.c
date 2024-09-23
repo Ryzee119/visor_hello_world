@@ -131,9 +131,9 @@ void boot(void)
 
     // Enable PIT timer at 1kHz
     io_output_byte(XBOX_PIT_COMMAND_PORT, PIT_ACCESS_LOHIBYTE | PIT_MODE_SQUARE_WAVE | (XBOX_PIT_CHANNEL0 & 0x0F));
-    uint16_t divider = PIC_TIMER_FREQ / 1000;
-    io_output_byte(XBOX_PIT_CHANNEL0, divider & 0xFF);
-    io_output_byte(XBOX_PIT_CHANNEL0, (divider >> 8) & 0xFF);
+    uint16_t diviser = PIC_TIMER_FREQ / 1000;
+    io_output_byte(XBOX_PIT_CHANNEL0, diviser & 0xFF);
+    io_output_byte(XBOX_PIT_CHANNEL0, (diviser >> 8) & 0xFF);
 
     // Disable APIC so PIC IRQs work
     ia32_apic_base_register apic_base;
@@ -147,7 +147,6 @@ void boot(void)
     // xbox_smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x1A, 0x01);
     // xbox_smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x1B, 0x04);
     // xbox_smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x19, 0x01);
-
     xbox_led_output(XLED_ORANGE, XLED_ORANGE, XLED_ORANGE, XLED_ORANGE);
 
     __asm__("sti");

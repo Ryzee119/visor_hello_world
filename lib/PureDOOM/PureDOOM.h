@@ -1061,7 +1061,7 @@ typedef enum
 #define SCREENHEIGHT 200
 
 // The maximum number of players, multiplayer/networking.
-#define MAXPLAYERS 4
+#define MAXPLAYERS 1
 
 // State updates, number of tics / second.
 #if defined(DOOM_FAST_TICK)
@@ -13383,7 +13383,7 @@ void G_DoNewGame(void)
     netdemo = false;
     netgame = false;
     deathmatch = false;
-    playeringame[1] = playeringame[2] = playeringame[3] = 0;
+    //playeringame[1] = playeringame[2] = playeringame[3] = 0;
     respawnparm = false;
     fastparm = false;
     nomonsters = false;
@@ -13634,11 +13634,12 @@ void G_DoPlayDemo(void)
 
     for (i = 0; i < MAXPLAYERS; i++)
         playeringame[i] = *demo_p++;
-    if (playeringame[1])
-    {
-        netgame = true;
-        netdemo = true;
-    }
+    
+    //if (playeringame[1])
+    //{
+    //    netgame = true;
+    //    netdemo = true;
+    //}
 
     // don't spend a lot of time in loadlevel 
     precache = false;
@@ -13702,7 +13703,7 @@ doom_boolean G_CheckDemoStatus(void)
         netdemo = false;
         netgame = false;
         deathmatch = false;
-        playeringame[1] = playeringame[2] = playeringame[3] = 0;
+        //playeringame[1] = playeringame[2] = playeringame[3] = 0;
         respawnparm = false;
         fastparm = false;
         nomonsters = false;
@@ -14590,9 +14591,9 @@ doom_boolean HU_Responder(event_t* ev)
     static char destination_keys[MAXPLAYERS] =
     {
         HUSTR_KEYGREEN,
-        HUSTR_KEYINDIGO,
-        HUSTR_KEYBROWN,
-        HUSTR_KEYRED
+        //HUSTR_KEYINDIGO,
+       // HUSTR_KEYBROWN,
+       // HUSTR_KEYRED
     };
 
     static int num_nobrainers = 0;

@@ -105,7 +105,7 @@ section .visor_entry
 
     ; 0 +128M WB (RAM) (0x00000000 + 128MB)
     ; 128 MB region starting at address 0x00000000 to be cached as Write-Back (WB) memory
-    WR_MSR 0x200, 0x00000000, 0x00000004 ; Base
+    WR_MSR 0x200, 0x00000000, 0x00000006 ; Base
     WR_MSR 0x201, 0x0000000f, 0xf8000800 ; Mask
 
     ; 0xf0000000 +128M WC (VRAM) (0xF0000000 + 128MB)
@@ -215,7 +215,7 @@ reload_segment_selectors:
     mov     al, 0x8
     mov     dx, 0x61
     out     dx, al
-    
+
     ; Need to do this quickly after boot, so we do it before we decompress and copy user code 
     ; into RAM
     call boot_pic_challenge_response
@@ -266,6 +266,7 @@ reload_segment_selectors:
 section .compressed
     dq 0
 
+; Reserved space for idt table
 section .bss
 idt_table:
     resq 256

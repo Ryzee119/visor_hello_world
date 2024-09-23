@@ -31,8 +31,7 @@
 #define SMBUS_WRITE 0
 #define SMBUS_READ  1
 
-#define SMBUS_RETURN_ERROR   -1
-
+#define SMBUS_RETURN_ERROR -1
 
 int8_t xbox_smbus_poke(uint8_t address);
 int8_t xbox_smbus_input_byte(uint8_t address, uint8_t reg, uint8_t *data);
@@ -43,4 +42,3 @@ int8_t xbox_smbus_output_word(uint8_t address, uint8_t reg, uint16_t data);
 int8_t xbox_smbus_output_dword(uint8_t address, uint8_t reg, uint32_t data);
 
 #endif
-

@@ -23,8 +23,7 @@ void xbox_serial_init(void)
     io_output_byte(0x2e, 0xAA);
 }
 
-__attribute__((section(".boot_code"))) 
-void xbox_serial_putchar(char character)
+__attribute__((section(".boot_code"))) void xbox_serial_putchar(char character)
 {
 
     spinlock_acquire(&lock);

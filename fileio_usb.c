@@ -34,51 +34,47 @@ static usb_msc_device_t *get_msc_device(uint8_t dev_addr)
     return NULL;
 }
 
-static bool inquiry_complete_cb(uint8_t dev_addr, tuh_msc_complete_data_t const *cb_data)
+static bool msc_transfer_cb(uint8_t dev_addr, tuh_msc_complete_data_t const *cb_data)
 {
+    usb_msc_device_t *msc = get_msc_device(dev_addr);
+    int *finished = (int *)cb_data->user_arg;
+
     msc_cbw_t const *cbw = cb_data->cbw;
     msc_csw_t const *csw = cb_data->csw;
 
-    if (csw->status != 0) {
-        MSC_PRINTF("Inquiry failed\r\n");
-        return false;
+    if (csw->status == 0) {
+        *finished = 1;
+    } else {
+        printf_r("[USBMSC] SCSI command failed with status %d\n", csw->status);
+        *finished = -1;
     }
 
-    usb_msc_device_t *msc = get_msc_device(dev_addr);
-    if (msc == NULL) {
-        return false;
-    }
+    return true;
+}
 
-    // Print out Vendor ID, Product ID and Rev
-    MSC_PRINTF("[USBMSC] %.8s %.16s rev %.4s\r\n", msc->inquiry_response.vendor_id, msc->inquiry_response.product_id, msc->inquiry_response.product_rev);
+static void msc_mount_task(void *parameters)
+{
+    usb_msc_device_t *msc = parameters;
 
-    // Get capacity of device
-    uint32_t const block_count = tuh_msc_get_block_count(dev_addr, cbw->lun);
-    uint32_t const block_size = tuh_msc_get_block_size(dev_addr, cbw->lun);
-
-    MSC_PRINTF("[USBMSC] Disk Size: %" PRIu32 " MB\r\n", block_count / ((1024 * 1024) / block_size));
-
-    msc->drive_path[0] = '0' + msc->drive_number;
-    msc->drive_path[1] = ':';
-    msc->drive_path[2] = '\0';
-
+    msc->drive_path[0] = '\0';
     msc->fatfs = pvPortMalloc(sizeof(FATFS));
     if (msc->fatfs == NULL) {
-        MSC_PRINTF("[USBMSC] Could not allocate memory for FATFS\n");
-        return false;
+        printf_r("[USBMSC] Could not allocate memory for FATFS\n");
+        vTaskDelete(NULL);
+        return;
     }
 
-    MSC_PRINTF("[USBMSC] Trying to mount to %s\r\n", msc->drive_path);
-
+    printf_r("[USBMSC] Trying to mount to %s\r\n", msc->drive_path);
     FRESULT res = f_mount(msc->fatfs, (const TCHAR *)msc->drive_path, 1);
     if (res != FR_OK) {
-        MSC_PRINTF("[USBMSC] f_mount failed with error %d\r\n", res);
+        printf_r("[USBMSC] f_mount failed with error %d\r\n", res);
     }
-    MSC_PRINTF("[USBMSC] Disk mounted as drive %s\r\n", msc->drive_path);
+    printf_r("[USBMSC] Disk mounted as drive %s\r\n", msc->drive_path);
 
+    // Alert doom we are ready
     extern SemaphoreHandle_t doom_mutex;
     xSemaphoreGive(doom_mutex);
-    return true;
+    vTaskDelete(NULL);
 }
 
 void tuh_msc_mount_cb(uint8_t dev_addr)
@@ -88,8 +84,9 @@ void tuh_msc_mount_cb(uint8_t dev_addr)
             msc_device[i].dev_addr = dev_addr;
             msc_device[i].drive_number = i;
             msc_device[i].fatfs = NULL;
-            tuh_msc_inquiry(dev_addr, 0, &msc_device[i].inquiry_response, inquiry_complete_cb, 0);
-            MSC_PRINTF("[USBMSC] Address %d mounted at index %d\r\n", dev_addr, i);
+            printf_r("[USBMSC] Address %d mounted to index %d\r\n", dev_addr, i);
+            xTaskCreate(msc_mount_task, "msc_mount_task", configMINIMAL_STACK_SIZE, &msc_device[i], THREAD_PRIORITY_NORMAL, NULL);
+
             return;
         }
     }
@@ -114,6 +111,7 @@ void tuh_msc_umount_cb(uint8_t dev_addr)
     }
 }
 
+/* FATFS WRAPPER FOR USB IO */
 DSTATUS disk_status(BYTE pdrv)
 {
     uint8_t dev_addr = pdrv + 1;
@@ -125,22 +123,17 @@ DSTATUS disk_initialize(BYTE pdrv)
     return 0;
 }
 
-static bool disk_io_complete(uint8_t dev_addr, tuh_msc_complete_data_t const *cb_data)
-{
-    uint8_t *finished = (uint8_t *)cb_data->user_arg;
-    *finished = 1;
-    return true;
-}
-
 DRESULT disk_read(BYTE pdrv, BYTE *buff, LBA_t sector, UINT count)
 {
-
     const usb_msc_device_t *msc = &msc_device[pdrv];
-    uint8_t finished = 0;
-    if (tuh_msc_read10(msc->dev_addr, 0, buff, sector, (uint16_t)count, disk_io_complete, (uintptr_t)&finished)) {
+    int finished = 0;
+    if (tuh_msc_read10(msc->dev_addr, 0, buff, sector, (uint16_t)count, msc_transfer_cb, (uintptr_t)&finished)) {
         while (finished == 0) {
             taskYIELD();
-            tuh_task();
+        }
+        if (finished == -1) {
+            printf_r("disk_read failed, sector %d, count %d\n", sector, count);
+            return RES_ERROR;
         }
         return RES_OK;
     }
@@ -150,11 +143,14 @@ DRESULT disk_read(BYTE pdrv, BYTE *buff, LBA_t sector, UINT count)
 DRESULT disk_write(BYTE pdrv, const BYTE *buff, LBA_t sector, UINT count)
 {
     const usb_msc_device_t *msc = &msc_device[pdrv];
-    uint8_t finished = 0;
-    if (tuh_msc_write10(msc->dev_addr, 0, buff, sector, (uint16_t)count, disk_io_complete, (uintptr_t)&finished)) {
+    int finished = 0;
+    if (tuh_msc_write10(msc->dev_addr, 0, buff, sector, (uint16_t)count, msc_transfer_cb, (uintptr_t)&finished)) {
         while (finished == 0) {
             taskYIELD();
-            tuh_task();
+        }
+        if (finished == -1) {
+            printf_r("disk_write failed\n");
+            return RES_ERROR;
         }
         return RES_OK;
     }

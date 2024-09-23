@@ -176,7 +176,7 @@ void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, voi
     xbox_gpu_output32(PFB, 0x200, 0x03070103);
     xbox_gpu_output32(PFB, 0x204, 0x11448000);
 
-    //XPRINTF("[GPU] Setting up display mode %08X\n", mode_coding);
+    // XPRINTF("[GPU] Setting up display mode %08X\n", mode_coding);
 
     current_output_mode_coding = mode_coding;
 
@@ -253,7 +253,7 @@ void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, voi
     xbox_display_info.width = xbox_display_info.hvalid_end - xbox_display_info.hvalid_start + 1;
     xbox_display_info.height = xbox_display_info.vvalid_end - xbox_display_info.vvalid_start + 1;
 
-    //XPRINTF xbox_display_info
+    // XPRINTF xbox_display_info
 
     xbox_encoder_configure(mode_coding, &xbox_display_info);
 
@@ -302,10 +302,9 @@ void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, voi
     xbox_gpu_output_gra(0x07, 0x0F);
     xbox_gpu_output_gra(0x08, 0xFF);
 
-    const uint8_t vga_attr[] = {0x00, 0x00, 0x01, 0x01, 0x02, 0x02, 0x03, 0x03, 0x04, 0x04, 0x05,
-                                0x05, 0x06, 0x06, 0x07, 0x07, 0x08, 0x08, 0x09, 0x09, 0x0A, 0x0A,
-                                0x0B, 0x0B, 0x0C, 0x0C, 0x0D, 0x0D, 0x0E, 0x0E, 0x0F, 0x0F, 0x10,
-                                0x01, 0x11, 0x4A, 0x12, 0x0F, 0x13, 0x00, 0x14, 0x00, 0x20};
+    const uint8_t vga_attr[] = {0x00, 0x00, 0x01, 0x01, 0x02, 0x02, 0x03, 0x03, 0x04, 0x04, 0x05, 0x05, 0x06, 0x06, 0x07,
+                                0x07, 0x08, 0x08, 0x09, 0x09, 0x0A, 0x0A, 0x0B, 0x0B, 0x0C, 0x0C, 0x0D, 0x0D, 0x0E, 0x0E,
+                                0x0F, 0x0F, 0x10, 0x01, 0x11, 0x4A, 0x12, 0x0F, 0x13, 0x00, 0x14, 0x00, 0x20};
     for (uint8_t i = 0; i < XBOX_ARRAY_SIZE(vga_attr); i++) {
         xbox_gpu_output08(PRMCIO, 0x3C0, vga_attr[i]);
     }
@@ -382,8 +381,8 @@ uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter)
 
     switch (option) {
         case XBOX_VIDEO_OPTION_VIDEO_ENABLE:
-            //XPRINTF("[VIDEO] Turning %s\n", (*parameter) ? "on" : "off");
-            // Switch it in gpu and at hardware level
+            // XPRINTF("[VIDEO] Turning %s\n", (*parameter) ? "on" : "off");
+            //  Switch it in gpu and at hardware level
             if (*parameter) {
                 xbox_gpu_set_output_enable(1);
                 xbox_gpu_output32(PRAMDAC, 0x6A0, 0x01);
@@ -422,7 +421,7 @@ uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter)
             }
             break;
         case XBOX_VIDEO_OPTION_VIDEO_FLICKER_FILTER:
-            uint32_t flicker_level = *parameter; //FIXME C23 extension
+            uint32_t flicker_level = *parameter; // FIXME C23 extension
             switch (current_encoder_address) {
                 case XBOX_SMBUS_ADDRESS_ENCODER_XCALIBUR:
                     break;
@@ -439,7 +438,6 @@ uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter)
                     xbox_smbus_output_byte(current_encoder_address, FOCUS_SDTVI_FLK_16, (uint16_t)(flicker_level + 0xFF));
                     xbox_smbus_output_byte(current_encoder_address, FOCUS_SDTVI_FLK_16, (uint16_t)(flicker_level + 0x00));
 
-                    
                     break;
                 default:
                     return VIDEO_RETURN_ERROR;
@@ -516,7 +514,8 @@ static VIDEO_MODE_SETTING video_modes[] = {
     {0x04020204, 720, 480, 60, VIDEO_REGION_NTSCJ, AV_PACK_SVIDEO}, // 720x480 NTSCJ 60Hz
 };
 
-const VIDEO_MODE_SETTING *video_get_settings(uint32_t mode_coding) {
+const VIDEO_MODE_SETTING *video_get_settings(uint32_t mode_coding)
+{
     for (int i = 0; i < XBOX_ARRAY_SIZE(video_modes); i++) {
         if (video_modes[i].dwMode == mode_coding) {
             return &video_modes[i];
@@ -525,9 +524,11 @@ const VIDEO_MODE_SETTING *video_get_settings(uint32_t mode_coding) {
     return NULL;
 }
 
-void apply_all_video_modes(void *fb) {
+void apply_all_video_modes(void *fb)
+{
     for (int i = 0; i < XBOX_ARRAY_SIZE(video_modes); i++) {
-        XPRINTF("\r\n%d Mode: %08x, Width: %d, Height: %d, Refresh: %d, BPP: 32\r", i, video_modes[i].dwMode, video_modes[i].width, video_modes[i].height, video_modes[i].refresh);
+        XPRINTF("\r\n%d Mode: %08x, Width: %d, Height: %d, Refresh: %d, BPP: 32\r", i, video_modes[i].dwMode, video_modes[i].width, video_modes[i].height,
+                video_modes[i].refresh);
         xbox_video_init(video_modes[i].dwMode, ARGB8888, fb);
     }
 }

@@ -1,5 +1,4 @@
-// SPDX-License-Identifier: MIT
-// https://archive.org/details/fs-4534-and-fs-4556-software-reference/FS4534%20and%20FS4556%20Software%20Reference.pdf
+// SPDX-LicensE-Identifier: MIT
 
 #include "xbox.h"
 
@@ -128,7 +127,6 @@ void xbox_encoder_configure(uint32_t mode_coding, display_information_t *display
 
     switch (current_encoder_address) {
         case XBOX_SMBUS_ADDRESS_ENCODER_XCALIBUR:
-
             for (uint8_t i = 0; i < XBOX_ARRAY_SIZE(XCALIBUR_LOOKUP_INDEX); i++) {
                 if (XCALIBUR_VALUES[XCALIBUR_LOOKUP_INDEX[i][0]] == mode_coding) {
                     lookup_row = i;
@@ -141,7 +139,7 @@ void xbox_encoder_configure(uint32_t mode_coding, display_information_t *display
             }
 
             // Set output timing
-            for (uint8_t i = 1; i < XBOX_ARRAY_SIZE(XCALIBUR_OFFSETS); i++) {
+            for (uint8_t i = 1; i < sizeof(XCALIBUR_OFFSETS); i++) {
                 uint8_t command = XCALIBUR_OFFSETS[i];
                 uint32_t value = XCALIBUR_VALUES[XCALIBUR_LOOKUP_INDEX[lookup_row][i]];
                 xbox_smbus_output_dword(current_encoder_address, command, value);
@@ -207,7 +205,7 @@ void xbox_encoder_configure(uint32_t mode_coding, display_information_t *display
                     {0xa1, 0x02}, {0xa2, 0x00}, {0xa3, 0x00}, {0xa4, 0x00}, {0xa5, 0x00}, {0xa6, 0x00}, {0xa7, 0x00}, {0xa8, 0x00}, {0xa9, 0x01}, {0xaa, 0x00},
                     {0xab, 0x01}, {0xac, 0x00}, {0xad, 0x01}, {0xb6, 0xf0}, {0xb7, 0x00}, {0xc2, 0xee}, {0xc3, 0x00}};
 
-                for (uint8_t i = 0; i < XBOX_ARRAY_SIZE(focus_pre_data) / 2; i++) {
+                for (uint8_t i = 0; i < sizeof(focus_pre_data) / 2; i++) {
                     FOCUS_OUTPUT_BYTE(focus_pre_data[i][0], focus_pre_data[i][1]);
                 }
             }
@@ -408,8 +406,8 @@ void xbox_encoder_configure(uint32_t mode_coding, display_information_t *display
                 FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_MISC_74_8, misc_74);
 
                 // Output timing
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_HSYNC_WID_8, P50_P60_NTSCM_NTSCJ(0x7C, 0x7C, 0x7C, 0x7C)); // 124
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_BURST_WID_8, P50_P60_NTSCM_NTSCJ(0x3C, 0x40, 0x40, 0x40)); // 60 / 64
+                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_HSYNC_WID_8, P50_P60_NTSCM_NTSCJ(0x7C, 0x7C, 0x7C, 0x7C));
+                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_BURST_WID_8, P50_P60_NTSCM_NTSCJ(0x3C, 0x40, 0x40, 0x40));
                 FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_BPORCH_8, P50_P60_NTSCM_NTSCJ(0x9A, 0x80, 0x80, 0x80));
                 FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_CB_BURST_8, P50_P60_NTSCM_NTSCJ(0x2F, 0x2F, 0x3E, 0x3E));
                 FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_CR_BURST_8, P50_P60_NTSCM_NTSCJ(0x21, 0x21, 0x00, 0x00));
@@ -447,7 +445,7 @@ void xbox_encoder_configure(uint32_t mode_coding, display_information_t *display
                 // Turns out on xbox they are always the same anyway
                 const uint8_t scart_enable[][2] = {{0x92, 0xC1}, {0x93, 0x08}, {0xA2, 0x4D}, {0xA3, 0x00}, {0xA4, 0x96}, {0xA5, 0x00}, {0xA6, 0x1D},
                                                    {0xA7, 0x00}, {0xA8, 0xA0}, {0xA9, 0x00}, {0xAA, 0xDB}, {0xAB, 0x00}, {0xAC, 0x7E}, {0xAD, 0x00}};
-                for (uint8_t i = 0; i < XBOX_ARRAY_SIZE(scart_enable) / 2; i++) {
+                for (uint8_t i = 0; i < sizeof(scart_enable) / 2; i++) {
                     xbox_smbus_input_byte(current_encoder_address, scart_enable[i][0], (uint8_t *)&temp);
                     FOCUS_OUTPUT_BYTE(scart_enable[i][0], scart_enable[i][1]);
                 }

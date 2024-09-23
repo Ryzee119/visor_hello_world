@@ -5,6 +5,7 @@ static int _putc(char c, FILE *file)
     (void)file;
     xbox_serial_putchar(c);
     display_write_char(c);
+    // xbox_smbus_output_byte(0x01 << 1, 0x0C, c);
     return c;
 }
 

@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <lz4/lib/lz4.h>
 #include <pc/cpu.h>
 #include <pc/dma8237.h>
 #include <pc/ia32_compact.h>
@@ -18,7 +19,6 @@
 #include <pc/pci_io.h>
 #include <pc/pic8259.h>
 #include <pc/pit8254.h>
-#include <lz4/lib/lz4.h>
 
 #include "eeprom.h"
 #include "encoder.h"

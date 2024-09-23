@@ -55,18 +55,18 @@ typedef struct _VIDEO_MODE_SETTING
     uint32_t dwStandard;
     uint32_t dwFlags;
 } VIDEO_MODE_SETTING;
-#define AV_PACK_NONE     0x00000000
-#define AV_PACK_STANDARD 0x00000001
-#define AV_PACK_RFU      0x00000002
-#define AV_PACK_SCART    0x00000003
-#define AV_PACK_HDTV     0x00000004
-#define AV_PACK_VGA      0x00000005
-#define AV_PACK_SVIDEO   0x00000006
+#define AV_PACK_NONE       0x00000000
+#define AV_PACK_STANDARD   0x00000001
+#define AV_PACK_RFU        0x00000002
+#define AV_PACK_SCART      0x00000003
+#define AV_PACK_HDTV       0x00000004
+#define AV_PACK_VGA        0x00000005
+#define AV_PACK_SVIDEO     0x00000006
 #define VIDEO_REGION_NTSCM 0x00000100
 #define VIDEO_REGION_NTSCJ 0x00000200
 #define VIDEO_REGION_PAL   0x00000300
 
-#define XBOX_VIDEO_MAKE_COLOR_RGB565(r, g, b) (((r & 0x1F) << 11) | ((g & 0x3F) << 5) | (b & 0x1F))
+#define XBOX_VIDEO_MAKE_COLOR_RGB565(r, g, b)       (((r & 0x1F) << 11) | ((g & 0x3F) << 5) | (b & 0x1F))
 #define XBOX_VIDEO_MAKE_COLOUR_ARGB8888(a, r, g, b) (((a & 0xFF) << 24) | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (b & 0xFF))
 
 void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, void *frame_buffer);
@@ -74,5 +74,3 @@ uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter);
 const display_information_t *xbox_video_get_display_information();
 const VIDEO_MODE_SETTING *video_get_settings(uint32_t mode_coding);
 #endif
-
-
