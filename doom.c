@@ -1,6 +1,7 @@
 #define DOOM_IMPLEMENTATION
 #include "main.h"
 
+//Wtf doom
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #pragma GCC diagnostic ignored "-Wsometimes-uninitialized"
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"

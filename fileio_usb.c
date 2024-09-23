@@ -36,10 +36,7 @@ static usb_msc_device_t *get_msc_device(uint8_t dev_addr)
 
 static bool msc_transfer_cb(uint8_t dev_addr, tuh_msc_complete_data_t const *cb_data)
 {
-    usb_msc_device_t *msc = get_msc_device(dev_addr);
     int *finished = (int *)cb_data->user_arg;
-
-    msc_cbw_t const *cbw = cb_data->cbw;
     msc_csw_t const *csw = cb_data->csw;
 
     if (csw->status == 0) {
@@ -64,10 +61,11 @@ static void msc_mount_task(void *parameters)
         return;
     }
 
-    printf_r("[USBMSC] Trying to mount to %s\r\n", msc->drive_path);
     FRESULT res = f_mount(msc->fatfs, (const TCHAR *)msc->drive_path, 1);
     if (res != FR_OK) {
         printf_r("[USBMSC] f_mount failed with error %d\r\n", res);
+        vTaskDelete(NULL);
+        return;
     }
     printf_r("[USBMSC] Disk mounted as drive %s\r\n", msc->drive_path);
 
@@ -84,9 +82,7 @@ void tuh_msc_mount_cb(uint8_t dev_addr)
             msc_device[i].dev_addr = dev_addr;
             msc_device[i].drive_number = i;
             msc_device[i].fatfs = NULL;
-            printf_r("[USBMSC] Address %d mounted to index %d\r\n", dev_addr, i);
             xTaskCreate(msc_mount_task, "msc_mount_task", configMINIMAL_STACK_SIZE, &msc_device[i], THREAD_PRIORITY_NORMAL, NULL);
-
             return;
         }
     }
