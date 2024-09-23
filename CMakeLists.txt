@@ -140,6 +140,7 @@ target_sources(${OUTPUT_NAME} PRIVATE
     config_freertos/irq.c
     config_fatfs/ffsystem.c
     main.c
+    display.c
     usb.c
     debug.c
     interrupts.c

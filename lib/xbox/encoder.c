@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 // https://archive.org/details/fs-4534-and-fs-4556-software-reference/FS4534%20and%20FS4556%20Software%20Reference.pdf
 
-
 #include "xbox.h"
 
 extern uint8_t current_encoder_address;
@@ -123,6 +122,10 @@ void xbox_encoder_configure(uint32_t mode_coding, display_information_t *display
     // const uint16_t vsync_delay = vsync_backporch_height + height + vsync_height;
     // const uint8_t is_wss = (mode_coding & 0x10000000) ? 1 : 0;
 
+    XPRINTF("[ENCODER] Configuring %s encoder\n", (current_encoder_address == XBOX_SMBUS_ADDRESS_ENCODER_CONEXANT) ? "Conexant"
+                                                  : (current_encoder_address == XBOX_SMBUS_ADDRESS_ENCODER_FOCUS)  ? "Focus"
+                                                                                                                   : "Xcalibur");
+
     switch (current_encoder_address) {
         case XBOX_SMBUS_ADDRESS_ENCODER_XCALIBUR:
 
@@ -191,8 +194,6 @@ void xbox_encoder_configure(uint32_t mode_coding, display_information_t *display
             #define P50_P60_NTSCM_NTSCJ(a, b, c, d) \
                 ((is_sd_pal50) ? a : (is_sd_pal60) ? b : (is_sd_ntscj) ? d : c)
             // clang-format on
-
-            XPRINTF("[ENCODER] Configuring Focus encoder, %08x width %d height %d, hd %d, is_sd_pal50 %d\n", mode_coding, width, height, is_ed, is_sd_pal50);
 
             // Soft reset of encoder begin - maintain reset while bit 0 is set
             FOCUS_OUTPUT_WORD(FOCUS_CTRL_CR_16, 0x0001);
@@ -338,10 +339,10 @@ void xbox_encoder_configure(uint32_t mode_coding, display_information_t *display
                 }
             pll_search_finished:
                 if (found) {
-                    pll_m = pll_m - 17;    // Programmed as M-17
-                    pll_n = pll_n - 1;     // Programmed as N-1
-                    out_div = out_div - 1; // Programmed as IP-1
-                    FOCUS_OUTPUT_WORD(FOCUS_CLOCK_NCON_32, 0x0001); //for simplicity numerator is always 1
+                    pll_m = pll_m - 17;                             // Programmed as M-17
+                    pll_n = pll_n - 1;                              // Programmed as N-1
+                    out_div = out_div - 1;                          // Programmed as IP-1
+                    FOCUS_OUTPUT_WORD(FOCUS_CLOCK_NCON_32, 0x0001); // for simplicity numerator is always 1
                     if (is_ed) {
                         FOCUS_OUTPUT_WORD(FOCUS_CLOCK_NCON_32 + 2, 0x000);
                     }
@@ -407,8 +408,8 @@ void xbox_encoder_configure(uint32_t mode_coding, display_information_t *display
                 FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_MISC_74_8, misc_74);
 
                 // Output timing
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_HSYNC_WID_8, P50_P60_NTSCM_NTSCJ(0x7C, 0x7C, 0x7C, 0x7C)); //124
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_BURST_WID_8, P50_P60_NTSCM_NTSCJ(0x3C, 0x40, 0x40, 0x40)); //60 / 64
+                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_HSYNC_WID_8, P50_P60_NTSCM_NTSCJ(0x7C, 0x7C, 0x7C, 0x7C)); // 124
+                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_BURST_WID_8, P50_P60_NTSCM_NTSCJ(0x3C, 0x40, 0x40, 0x40)); // 60 / 64
                 FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_BPORCH_8, P50_P60_NTSCM_NTSCJ(0x9A, 0x80, 0x80, 0x80));
                 FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_CB_BURST_8, P50_P60_NTSCM_NTSCJ(0x2F, 0x2F, 0x3E, 0x3E));
                 FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_CR_BURST_8, P50_P60_NTSCM_NTSCJ(0x21, 0x21, 0x00, 0x00));

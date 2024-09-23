@@ -33,13 +33,26 @@ static void dooom_free(void *ptr)
 
 static void dooom_gettime(int *sec, int *usec)
 {
-    int ms = xTaskGetTickCount();;
-    *sec = ms / configTICK_RATE_HZ;
-    *usec = (ms % 1000)* 1000;
+    static uint32_t base_ms = 0;
+    if (base_ms == 0) {
+        base_ms = pdTICKS_TO_MS(xTaskGetTickCount());
+    }
+    int ms = pdTICKS_TO_MS(xTaskGetTickCount()) - base_ms;
+    *sec = ms / 1000;
+    *usec = (ms % 1000) * 1000;
 }
 
+static const char *cached_wad_path = NULL;
+static uint8_t *cached_wad_data = NULL;
+static uint32_t cached_wad_size = 0;
+static uint32_t cached_wad_cursor = 0;
 static void *dooom_open(const char *filename, const char *mode)
 {
+    if (strcmp(filename, cached_wad_path) == 0) {
+        cached_wad_cursor = 0;
+        return cached_wad_data;
+    }
+
     FIL *fp = pvPortMalloc(sizeof(FIL));
     BYTE fatfs_mode = 0;
     while (*mode) {
@@ -57,10 +70,7 @@ static void *dooom_open(const char *filename, const char *mode)
         mode++;
     }
 
-    // prefix "0:" to filename
-    char fullpath[32];
-    sprintf(fullpath, "0:%s", (filename + 1));
-    if (f_open(fp, fullpath, fatfs_mode) != FR_OK) {
+    if (f_open(fp, filename + 2, fatfs_mode) != FR_OK) {
         vPortFree(fp);
         return NULL;
     } else {
@@ -71,12 +81,20 @@ static void *dooom_open(const char *filename, const char *mode)
 
 static void dooom_close(void *handle)
 {
+    if (handle == cached_wad_data) {
+        return;
+    }
     f_close(handle);
     vPortFree(handle);
 }
 
 static int dooom_read(void *handle, void *buf, int count)
 {
+    if (handle == cached_wad_data) {
+        memcpy(buf, &cached_wad_data[cached_wad_cursor], count);
+        cached_wad_cursor += count;
+        return count;
+    }
     UINT bytes_read;
     if (f_read((FIL *)handle, buf, count, &bytes_read) != FR_OK) {
         printf("dooom_read, failed\n");
@@ -87,6 +105,9 @@ static int dooom_read(void *handle, void *buf, int count)
 
 static int dooom_write(void *handle, const void *buf, int count)
 {
+    if (handle == cached_wad_data) {
+        return -1;
+    }
     UINT bytes_written;
     if (f_write(handle, buf, count, &bytes_written) != FR_OK) {
         printf("dooom_write, failed\n");
@@ -97,6 +118,16 @@ static int dooom_write(void *handle, const void *buf, int count)
 
 static int dooom_seek(void *handle, int offset, doom_seek_t origin)
 {
+    if (handle == cached_wad_data) {
+        if (origin == DOOM_SEEK_SET) {
+            cached_wad_cursor = offset;
+        } else if (origin == DOOM_SEEK_CUR) {
+            cached_wad_cursor += offset;
+        } else if (origin == DOOM_SEEK_END) {
+            cached_wad_cursor = cached_wad_size - offset;
+        }
+        return 0;
+    }
     if (f_lseek(handle, offset) != FR_OK) {
         return -1;
     }
@@ -105,11 +136,17 @@ static int dooom_seek(void *handle, int offset, doom_seek_t origin)
 
 static int dooom_tell(void *handle)
 {
+    if (handle == cached_wad_data) {
+        return cached_wad_cursor;
+    }
     return f_tell((FIL *)handle);
 }
 
 static int dooom_eof(void *handle)
 {
+    if (handle == cached_wad_data) {
+        return cached_wad_cursor >= cached_wad_size;
+    }
     return f_eof((FIL *)handle);
 }
 
@@ -197,25 +234,60 @@ void dooom_new_input(uint16_t buttons, int16_t lx, int16_t ly)
     old_buttons = buttons;
 }
 
-int doom_entry()
+int doom_entry(const char *wad_path)
 {
-    static const char *args[] = {"doom", "-iwad", "doom1.wad", NULL};
+    static char *args[] = {"doom", "-iwad", NULL, NULL};
     int argc = 3;
+    args[2] = (char *)wad_path;
+
+    // Read in WAD file to RAM. Doing it in a big block here seems to work a lot better
+    printf_r("[DOOM] Reading WAD file: %s\n", wad_path);
+    {
+        FIL wad_file;
+        if (f_open(&wad_file, wad_path, FA_READ) != FR_OK) {
+            printf_r("Failed to open WAD file\n");
+            return -1;
+        }
+
+        cached_wad_size = f_size(&wad_file);
+        cached_wad_data = pvPortMalloc(cached_wad_size);
+        const uint32_t chunk_size = cached_wad_size / 16;
+        for (uint32_t i = 0; i < cached_wad_size; i += chunk_size) {
+            uint32_t remaining = cached_wad_size - i;
+            uint32_t read_len = remaining > chunk_size ? chunk_size : remaining;
+            if (f_read(&wad_file, &cached_wad_data[i], read_len, NULL) != FR_OK) {
+                printf_r("Failed to read WAD file\n");
+                return -1;
+            }
+            printf(".");
+        }
+        f_close(&wad_file);
+    }
+    printf_r("WAD file read, size: %d\n", cached_wad_size);
+
+    cached_wad_path = pvPortMalloc(strlen(wad_path) + 3);
+    sprintf((char *)cached_wad_path, "./%s", wad_path);
 
     doom_set_print(dooom_printf);
     doom_set_malloc(dooom_malloc, dooom_free);
     doom_set_gettime(dooom_gettime);
     doom_set_file_io(dooom_open, dooom_close, dooom_read, dooom_write, dooom_seek, dooom_tell, dooom_eof);
+
+    printf_r("[DOOM] Initializing...\n");
     doom_init(argc, args, 0);
 
-    uint32_t *final_screen_buffer = malloc(640 * 480 * 4);
+    uint32_t *final_screen_buffer = pvPortMalloc(640 * 480 * 4);
     final_screen_buffer = (uint32_t *)(0xF0000000 | (intptr_t)final_screen_buffer);
     while (1) {
         doom_update();
 
+        // The doom framebuffer is palette indexed at 320x200.
+        // We scale by 2 so it is 640x400 and apply the palette  to convert to aARGB8888.
         extern unsigned char screen_palette[256 * 3];
         uint8_t *indexed_framebuffer = (uint8_t *)doom_get_framebuffer(1);
         uint32_t *screen_buffer_ptr = final_screen_buffer;
+
+        screen_buffer_ptr += (SCREENWIDTH * 2) * 40; // 40 to shift down so it is centered
         for (int pixel = 0; pixel < SCREENWIDTH * SCREENHEIGHT; pixel++) {
             uint32_t index = indexed_framebuffer[pixel] * 3;
 
@@ -231,7 +303,7 @@ int doom_entry()
         }
 
         xbox_video_set_option(XBOX_VIDEO_OPTION_FRAMEBUFFER, final_screen_buffer);
-        vTaskDelay(10);
+        taskYIELD();
     }
     return 0;
 }

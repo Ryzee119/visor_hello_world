@@ -60,6 +60,7 @@
         "lz4.h": "c",
         "assert.h": "c",
         "cstddef": "c",
-        "freertos_irq.h": "c"
+        "freertos_irq.h": "c",
+        "xinput_host.h": "c"
     }
 }

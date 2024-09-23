@@ -32,63 +32,6 @@ __attribute__((section(".boot_code"))) static void smc_io(uint8_t command, uint8
     return;
 }
 
-__attribute__((section(".boot_code"))) void pulse_hex(unsigned int line)
-{
-    unsigned int num = line;
-    char buffer[16];
-
-    if (num == 0) {
-        xbox_serial_putchar('0');
-        xbox_serial_putchar('\n');
-        return;
-    }
-
-    int i = 0;
-    while (num != 0) {
-        uint8_t digit = num % 16;
-        if (digit < 10) {
-            buffer[i++] = '0' + digit;
-        } else {
-            buffer[i++] = 'A' + (digit - 10);
-        }
-        num /= 16;
-    }
-
-    for (int j = i - 1; j >= 0; j--) {
-        xbox_serial_putchar(buffer[j]);
-    }
-    xbox_serial_putchar('\n');
-}
-
-__attribute__((section(".boot_code"))) void pulse(unsigned int line)
-{
-    static int init = 0;
-    if (!init) {
-        xbox_serial_init();
-        init = 1;
-    }
-    unsigned int num = line;
-    char buffer[16];
-
-    if (num == 0) {
-        xbox_serial_putchar('0');
-        xbox_serial_putchar('\n');
-        return;
-    }
-
-    int i = 0;
-    while (num != 0) {
-        // xbox_serial_putchar ('0'+ (num%10));
-        buffer[i++] = '0' + (num % 10);
-        num /= 10;
-    }
-
-    for (int j = i - 1; j >= 0; j--) {
-        xbox_serial_putchar(buffer[j]);
-    }
-    xbox_serial_putchar('\n');
-}
-
 __attribute__((section(".boot_code"))) void boot_pic_challenge_response(void)
 {
     uint8_t bC, bD, bE, bF;
@@ -156,55 +99,6 @@ __attribute__((section(".boot_code"))) void *boot_memmove(void *dest, const void
     return dest;
 }
 
-static void fill_rect_argb8888(void *fb, int fb_width, int fb_height, int x, int y, int w, int h, uint32_t argb)
-{
-    if (x < 0 || y < 0 || x + w > fb_width || y + h > fb_height) {
-        return;
-    }
-    uint32_t *framebuffer = (uint32_t *)fb;
-
-    for (int j = 0; j < h; ++j) {
-        for (int i = 0; i < w; ++i) {
-            int pixel_index = (y + j) * fb_width + (x + i);
-            framebuffer[pixel_index] = argb;
-        }
-    }
-}
-
-static uint16_t argb8888_to_rgb565(uint32_t argb)
-{
-    uint8_t r = (argb >> 16) & 0xFF;
-    uint8_t g = (argb >> 8) & 0xFF;
-    uint8_t b = argb & 0xFF;
-
-    uint16_t rgb565 = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
-    return rgb565;
-}
-
-// Fill rectangle in RGB565 framebuffer
-static void fill_rect_rgb565(void *fb, int fb_width, int fb_height, int x, int y, int w, int h, uint32_t argb)
-{
-    uint16_t color = argb8888_to_rgb565(argb); // Convert ARGB8888 to RGB565
-    uint16_t *framebuffer = (uint16_t *)fb;
-
-    // Loop through each pixel within the rectangle and set its color
-    for (int j = 0; j < h; ++j) {
-        int py = y + j;
-        if (py < 0 || py >= fb_height) {
-            continue; // Clip vertically
-        }
-
-        for (int i = 0; i < w; ++i) {
-            int px = x + i;
-            if (px < 0 || px >= fb_width) {
-                continue; // Clip horizontally
-            }
-
-            framebuffer[py * fb_width + px] = color;
-        }
-    }
-}
-
 extern void __libc_init_array(void);
 void boot(void)
 {
@@ -214,87 +108,12 @@ void boot(void)
     xbox_led_output(XLED_RED, XLED_RED, XLED_RED, XLED_RED);
 
     xbox_serial_init();
-    XPRINTF("Hello, World!\n");
 
     cpu_disable_cache();
     cpu_update_microcode();
     cpu_enable_cache();
 
-    cpuid_eax_01 cpuid_info;
-    cpu_read_cpuid(CPUID_VERSION_INFO, &cpuid_info.eax.flags, &cpuid_info.ebx.flags, &cpuid_info.ecx.flags, &cpuid_info.edx.flags);
-
-    XPRINTF("CPU Family: %d\n", cpuid_info.eax.family_id);
-    XPRINTF("CPU Model: %d\n", cpuid_info.eax.model);
-    XPRINTF("CPU Stepping: %d\n", cpuid_info.eax.stepping_id);
-    XPRINTF("CPU Type: %d\n", cpuid_info.eax.processor_type);
-    XPRINTF("CPU Extended Family: %d\n", cpuid_info.eax.extended_family_id);
-    XPRINTF("CPU Extended Model: %d\n", cpuid_info.eax.extended_model_id);
-
-    // Feature bits from edx and ecx registers
-    XPRINTF("Feature Bits (EDX): 0x%08x\n", cpuid_info.edx.flags);
-    XPRINTF("Feature Bits (ECX): 0x%08x\n", cpuid_info.ecx.flags);
-
     xbox_pci_init();
-
-#if (0)
-    io_output_byte(0x2E, 0x55);
-    io_output_byte(0x2E, 0x26);
-    io_output_byte(0x61, 0xff);
-    io_output_byte(0x92, 0x01);
-    io_output_byte(0xcf9, 0x0); // Reset Port
-    io_output_byte(0x43, 0x36); // Timer 0 (system time): mode 3
-    io_output_byte(0x40, 0xFF); // 18.2Hz (1.19318MHz/65535)
-    io_output_byte(0x40, 0xFF);
-    io_output_byte(0x43, 0x54); // Timer 1 (ISA refresh): mode 2
-    io_output_byte(0x41, 18);   // 64KHz (1.19318MHz/18)
-    io_output_byte(0x00, 0);    // clear base address 0
-    io_output_byte(0x00, 0);
-    io_output_byte(0x01, 0); // clear count 0
-    io_output_byte(0x01, 0);
-    io_output_byte(0x02, 0); // clear base address 1
-    io_output_byte(0x02, 0);
-    io_output_byte(0x03, 0); // clear count 1
-    io_output_byte(0x03, 0);
-    io_output_byte(0x04, 0); // clear base address 2
-    io_output_byte(0x04, 0);
-    io_output_byte(0x05, 0); // clear count 2
-    io_output_byte(0x05, 0);
-    io_output_byte(0x06, 0); // clear base address 3
-    io_output_byte(0x06, 0);
-    io_output_byte(0x07, 0); // clear count 3
-    io_output_byte(0x07, 0);
-    io_output_byte(0x0B, 0x40); // set channel 0 to single mode, verify transfer
-    io_output_byte(0x0B, 0x41); // set channel 1 to single mode, verify transfer
-    io_output_byte(0x0B, 0x42); // set channel 2 to single mode, verify transfer
-    io_output_byte(0x0B, 0x43); // set channel 3 to single mode, verify transfer
-    io_output_byte(0x08, 0);    // enable controller
-    io_output_byte(0xC0, 0);    // clear base address 0
-    io_output_byte(0xC0, 0);
-    io_output_byte(0xC2, 0); // clear count 0
-    io_output_byte(0xC2, 0);
-    io_output_byte(0xC4, 0); // clear base address 1
-    io_output_byte(0xC4, 0);
-    io_output_byte(0xC6, 0); // clear count 1
-    io_output_byte(0xC6, 0);
-    io_output_byte(0xC8, 0); // clear base address 2
-    io_output_byte(0xC8, 0);
-    io_output_byte(0xCA, 0); // clear count 2
-    io_output_byte(0xCA, 0);
-    io_output_byte(0xCC, 0); // clear base address 3
-    io_output_byte(0xCC, 0);
-    io_output_byte(0xCE, 0); // clear count 3
-    io_output_byte(0xCE, 0);
-    io_output_byte(0xD6, 0xC0); // set channel 0 to cascade mode
-    io_output_byte(0xD6, 0xC1); // set channel 1 to single mode, verify transfer
-    io_output_byte(0xD6, 0xC2); // set channel 2 to single mode, verify transfer
-    io_output_byte(0xD6, 0xC3); // set channel 3 to single mode, verify transfer
-    io_output_byte(0xD0, 0);    // enable controller
-    io_output_byte(0x0E, 0);    // enable DMA0 channels
-    io_output_byte(0xD4, 0);    // clear chain 4 mask
-#endif
-
-    // Write the default handlers to the IDT
-    // xbox_interrupt_configure();
 
     // Enable the 8259 Interrupt Controllers (Master and Slave)
     // All IRQs initially masked except IRQ2 (To ensure PIC2 IRQs work)
@@ -312,9 +131,9 @@ void boot(void)
 
     // Enable PIT timer at 1kHz
     io_output_byte(XBOX_PIT_COMMAND_PORT, PIT_ACCESS_LOHIBYTE | PIT_MODE_SQUARE_WAVE | (XBOX_PIT_CHANNEL0 & 0x0F));
-    uint16_t diviser = PIC_TIMER_FREQ / 1000;
-    io_output_byte(XBOX_PIT_CHANNEL0, diviser & 0xFF);
-    io_output_byte(XBOX_PIT_CHANNEL0, (diviser >> 8) & 0xFF);
+    uint16_t divider = PIC_TIMER_FREQ / 1000;
+    io_output_byte(XBOX_PIT_CHANNEL0, divider & 0xFF);
+    io_output_byte(XBOX_PIT_CHANNEL0, (divider >> 8) & 0xFF);
 
     // Disable APIC so PIC IRQs work
     ia32_apic_base_register apic_base;
@@ -329,43 +148,8 @@ void boot(void)
     // xbox_smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x1B, 0x04);
     // xbox_smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x19, 0x01);
 
-    __asm__("sti");
-
-    const int width = 640;
-    const int height = 480;
-    const int bpp = 4;
-
-    uint8_t *fb = malloc(width * height * bpp);
-    memset(fb, 0, width * height * bpp);
-    assert(fb);
-    fb = (uint8_t *)(0xF0000000 | (intptr_t)fb);
-    if (bpp == 2) {
-        fill_rect_rgb565(fb, width, height, 0, 0, width, height, 0xFF111111);
-        fill_rect_rgb565(fb, width, height, 0, 0, 100, 100, 0xFFFF0000);
-        fill_rect_rgb565(fb, width, height, width - 100, 0, 100, 100, 0xFF00FF00);
-        fill_rect_rgb565(fb, width, height, 0, height - 100, 100, 100, 0xFF0000FF);
-        fill_rect_rgb565(fb, width, height, width - 100, height - 100, 100, 100, 0xFFFFFFFF);
-    } else {
-        fill_rect_argb8888(fb, width, height, 0, 0, width, height, 0xFF111111);
-        fill_rect_argb8888(fb, width, height, 0, 0, 100, 100, 0xFFFF0000);
-        fill_rect_argb8888(fb, width, height, width - 100, 0, 100, 100, 0xFF00FF00);
-        fill_rect_argb8888(fb, width, height, 0, height - 100, 100, 100, 0xFF0000FF);
-        fill_rect_argb8888(fb, width, height, width - 100, height - 100, 100, 100, 0xFFFFFFFF);
-    }
-    __asm__ __volatile__("wbinvd" ::: "memory");
-
-    xbox_video_init(0x04010101, (bpp == 2) ? RGB565 : ARGB8888, fb);
-
-    // apply_all_video_modes(fb);
-    xbox_led_output(XLED_GREEN, XLED_GREEN, XLED_GREEN, XLED_GREEN);
-
-    uint8_t temp1, temp2;
-    xbox_smbus_input_byte(XBOX_SMBUS_ADDRESS_TEMP, 0x00, &temp1);
-    xbox_smbus_input_byte(XBOX_SMBUS_ADDRESS_TEMP, 0x01, &temp2);
-    XPRINTF("Temperature 1: %d\n", temp1);
-    XPRINTF("Temperature 2: %d\n", temp2);
-
     xbox_led_output(XLED_ORANGE, XLED_ORANGE, XLED_ORANGE, XLED_ORANGE);
 
+    __asm__("sti");
     __asm__("jmp main");
 }

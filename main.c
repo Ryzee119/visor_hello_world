@@ -14,11 +14,36 @@ void system_yield(uint32_t ms)
     }
 }
 
-
-static void doom_task(void *parameters) {
+SemaphoreHandle_t doom_mutex;
+static void doom_task(void *parameters)
+{
     while (1) {
-        vTaskDelay(3000);
-        doom_entry();
+        printf_r("[DOOM] Waiting for USB device...\n");
+        xSemaphoreTake(doom_mutex, portMAX_DELAY);
+
+        {
+            FILINFO fno;
+            DIR dir;
+            FRESULT res = f_opendir(&dir, "0:");
+            if (res != FR_OK) {
+                printf_r("[DOOM] f_opendir failed with error %d\n", res);
+                continue;
+            }
+
+            printf_r("[DOOM] Found WAD files:\n");
+            for (;;) {
+                res = f_readdir(&dir, &fno);
+                if (res != FR_OK || fno.fname[0] == 0) {
+                    break;
+                }
+                if (!(fno.fattrib & AM_DIR)) {
+                    if (strstr(fno.fname, ".wad") || strstr(fno.fname, ".WAD")) {
+                        printf_r("   %8lu  %s\n", fno.fsize, fno.fname);
+                    }
+                }
+            }
+        }
+        doom_entry("doom1.wad");
     }
 }
 
@@ -39,14 +64,14 @@ static void freertos_entry(void *parameters)
     __asm__ __volatile__("" ::: "memory");
     freertos_running = 1;
 
+    display_init();
     interrupts_init();
     usb_init();
 
-    xTaskCreate(doom_task, "Doom", 256*1024, NULL, THREAD_PRIORITY_NORMAL, NULL);
+    doom_mutex = xSemaphoreCreateBinary();
+    xTaskCreate(doom_task, "Doom!", configMINIMAL_STACK_SIZE, NULL, THREAD_PRIORITY_NORMAL, NULL);
 
-    while (1) {
-        vTaskDelay(portMAX_DELAY);
-    }
+    vTaskDelete(NULL);
 }
 
 int main(void)
@@ -56,10 +81,7 @@ int main(void)
     // which is good because we can setup the PIC timer with FreeRTOS context before the scheduler actually starts.
     static StaticTask_t freertos_entry_task;
     static StackType_t freertos_entry_stack[configMINIMAL_STACK_SIZE];
-    xTaskCreateStatic(freertos_entry, "Entry", configMINIMAL_STACK_SIZE, NULL, THREAD_PRIORITY_NORMAL, freertos_entry_stack, &freertos_entry_task);
-
-    
-
+    xTaskCreateStatic(freertos_entry, "FreeRTOS!", configMINIMAL_STACK_SIZE, NULL, THREAD_PRIORITY_NORMAL, freertos_entry_stack, &freertos_entry_task);
     vTaskStartScheduler();
 
     // Should never get here

@@ -38,6 +38,7 @@ exception_frame: .long 0, 0, 0
         pushl exception_frame + 4    // CS
         pushl exception_frame + 0    // EIP
         call \function
+        addl $12, %esp
         popa
 
         hlt
@@ -85,7 +86,6 @@ EXCEPTION_WRAPPER freertos_exception13, exception_handler13
 EXCEPTION_WRAPPER freertos_exception14, exception_handler14
 EXCEPTION_WRAPPER freertos_exception15, exception_handler15
 EXCEPTION_WRAPPER freertos_exception16, exception_handler16
-
 
 INTERRUPT_WRAPPER freertos_usb0_interrupt, usb0_handler, "pic1"
 INTERRUPT_WRAPPER freertos_gpu_interrupt, gpu_handler, "pic1"

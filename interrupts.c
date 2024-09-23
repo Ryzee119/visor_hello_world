@@ -1,11 +1,9 @@
 #include "main.h"
 #include <stdio.h>
 
-static void print_idt_entries();
-
 void interrupts_init()
 {
-    // For exceptions we cant use FreeRTOS API, so we need to install directly
+    // For exceptions we cant use FreeRTOS API (xPortInstallInterruptHandler), so we need to install directly
     idt_install_interrupt(0, freertos_exception0, IDT_PRESENT | IDT_TYPE_INT_GATE);
     idt_install_interrupt(1, freertos_exception1, IDT_PRESENT | IDT_TYPE_INT_GATE);
     idt_install_interrupt(2, freertos_exception2, IDT_PRESENT | IDT_TYPE_INT_GATE);
@@ -32,33 +30,4 @@ void interrupts_init()
     xPortInstallInterruptHandler(freertos_aci_interrupt, PIC_BASE(PCI_ACI_IRQ) + PCI_ACI_IRQ);
     xPortInstallInterruptHandler(freertos_usb1_interrupt, PIC_BASE(PCI_USB1_IRQ) + PCI_USB1_IRQ);
     xPortInstallInterruptHandler(freertos_ide_interrupt, PIC_BASE(PCI_IDE_IRQ) + PCI_IDE_IRQ);
-
-    //print_idt_entries();
 }
-
-// Function to print IDT entries
-#if (0)
-static void print_idt_entries()
-{
-    IDTPointer_t idt_reg;
-
-    __asm__ __volatile__("sidt %0" : "=m"(idt_reg));
-
-    IDTEntry_t *idt = (IDTEntry_t *)idt_reg.ulTableBase;
-
-    printf("IDT Base: 0x%x\n", idt_reg.ulTableBase);
-    printf("IDT Limit: 0x%x\n", idt_reg.usTableLimit);
-
-    for (int i = 0; i < (idt_reg.usTableLimit / sizeof(IDTEntry_t)); i++) {
-        IDTEntry_t entry = idt[i];
-
-        if (entry.usISRHigh == 0 && entry.usISRLow == 0) {
-            continue;
-        }
-        printf("IDT Entry %02x:", i);
-        printf("  Offset: 0x%x%04x ", entry.usISRHigh, entry.usISRLow);
-        printf("  Selector: 0x%02x ", entry.usSegmentSelector);
-        printf("  Type/Attr: 0x%02x\n", entry.ucFlags);
-    }
-}
-#endif

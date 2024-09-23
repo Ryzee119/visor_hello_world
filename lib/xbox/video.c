@@ -115,6 +115,7 @@ static void xbox_gpu_output_crtc(uint8_t index, uint8_t value)
     xbox_gpu_output08(PRMCIO, 0x3D5, value);
 }
 
+#if (0)
 static void xbox_gpu_output_clut(uint8_t regnum, uint8_t red, uint8_t green, uint8_t blue)
 {
     xbox_gpu_output08(PRMDIO, 0x3C8, regnum);
@@ -122,6 +123,7 @@ static void xbox_gpu_output_clut(uint8_t regnum, uint8_t red, uint8_t green, uin
     xbox_gpu_output08(PRMDIO, 0x3C9, green);
     xbox_gpu_output08(PRMDIO, 0x3C9, blue);
 }
+#endif
 
 static void xbox_gpu_set_output_enable(uint8_t enabled)
 {
@@ -245,6 +247,12 @@ void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, voi
                 break;
         }
     }
+
+    xbox_display_info.bytes_per_pixel = bpp;
+    xbox_display_info.frame_buffer = frame_buffer;
+    xbox_display_info.width = xbox_display_info.hvalid_end - xbox_display_info.hvalid_start + 1;
+    xbox_display_info.height = xbox_display_info.vvalid_end - xbox_display_info.vvalid_start + 1;
+
     //XPRINTF xbox_display_info
 
     xbox_encoder_configure(mode_coding, &xbox_display_info);
@@ -356,9 +364,9 @@ void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, voi
 #endif
 }
 
-void xbox_video_get_display_information(display_information_t *display_information)
+const display_information_t *xbox_video_get_display_information()
 {
-    memcpy(display_information, &xbox_display_info, sizeof(display_information_t));
+    return (const display_information_t *)&xbox_display_info;
 }
 
 uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter)
@@ -452,6 +460,7 @@ uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter)
         case XBOX_VIDEO_OPTION_FRAMEBUFFER:
             xbox_gpu_output32(PCRTC, 0x800, (uint32_t)parameter);
             current_frame_buffer = (void *)parameter;
+            xbox_display_info.frame_buffer = (void *)parameter;
             break;
         default:
             return VIDEO_RETURN_ERROR;

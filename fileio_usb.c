@@ -70,15 +70,14 @@ static bool inquiry_complete_cb(uint8_t dev_addr, tuh_msc_complete_data_t const 
 
     MSC_PRINTF("[USBMSC] Trying to mount to %s\r\n", msc->drive_path);
 
-    FRESULT res = f_mount(msc->fatfs, msc->drive_path, 1);
+    FRESULT res = f_mount(msc->fatfs, (const TCHAR *)msc->drive_path, 1);
     if (res != FR_OK) {
         MSC_PRINTF("[USBMSC] f_mount failed with error %d\r\n", res);
     }
     MSC_PRINTF("[USBMSC] Disk mounted as drive %s\r\n", msc->drive_path);
 
-    // test fopen
-    //static FIL *file;
-    //file = fopen("0:/test.txt", "r");
+    extern SemaphoreHandle_t doom_mutex;
+    xSemaphoreGive(doom_mutex);
     return true;
 }
 
@@ -103,7 +102,7 @@ void tuh_msc_umount_cb(uint8_t dev_addr)
         if (msc_device[i].dev_addr == dev_addr) {
             if (msc_device[i].fatfs != NULL) {
                 if (msc_device[i].fatfs->fs_type != 0) {
-                    f_unmount(msc_device[i].drive_path);
+                    f_unmount((const TCHAR *)msc_device[i].drive_path);
                 }
                 vPortFree(msc_device[i].fatfs);
                 msc_device[i].fatfs = NULL;
@@ -138,7 +137,6 @@ DRESULT disk_read(BYTE pdrv, BYTE *buff, LBA_t sector, UINT count)
 
     const usb_msc_device_t *msc = &msc_device[pdrv];
     uint8_t finished = 0;
-    // MSC_PRINTF("[USBMSC] READ pdrv: %d, dev_addr: %02x, sector: %d, count: %d\n", pdrv, msc->dev_addr, sector, count);
     if (tuh_msc_read10(msc->dev_addr, 0, buff, sector, (uint16_t)count, disk_io_complete, (uintptr_t)&finished)) {
         while (finished == 0) {
             taskYIELD();
@@ -153,7 +151,6 @@ DRESULT disk_write(BYTE pdrv, const BYTE *buff, LBA_t sector, UINT count)
 {
     const usb_msc_device_t *msc = &msc_device[pdrv];
     uint8_t finished = 0;
-    // MSC_PRINTF("[USBMSC] WRITE pdrv: %d, dev_addr: %02x, sector: %d, count: %d\n", pdrv, msc->dev_addr, sector, count);
     if (tuh_msc_write10(msc->dev_addr, 0, buff, sector, (uint16_t)count, disk_io_complete, (uintptr_t)&finished)) {
         while (finished == 0) {
             taskYIELD();

@@ -34,7 +34,7 @@
 #define XBOX_ARRAY_SIZE(a)       (sizeof(a) / sizeof((a)[0]))
 #define XBOX_CLAMP(low, x, high) (XBOX_MIN(XBOX_MAX(x, low), high))
 
-// #define XDEBUG
+#define XDEBUG
 #ifdef XDEBUG
 #define XPRINTF(...) printf(__VA_ARGS__)
 #else
