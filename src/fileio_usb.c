@@ -149,18 +149,18 @@ DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void *buff)
     const usb_msc_device_t *msc = &msc_device[pdrv];
     uint8_t dev_addr = msc->dev_addr;
     switch (cmd) {
-    case CTRL_SYNC:
-        return RES_OK;
-    case GET_SECTOR_COUNT:
-        *((DWORD *)buff) = (WORD)tuh_msc_get_block_count(dev_addr, 0);
-        return RES_OK;
-    case GET_SECTOR_SIZE:
-        *((WORD *)buff) = (WORD)tuh_msc_get_block_size(dev_addr, 0);
-        return RES_OK;
-    case GET_BLOCK_SIZE:
-        *((DWORD *)buff) = 1;
-        return RES_OK;
-    default:
-        return RES_PARERR;
+        case CTRL_SYNC:
+            return RES_OK;
+        case GET_SECTOR_COUNT:
+            *((DWORD *)buff) = (WORD)tuh_msc_get_block_count(dev_addr, 0);
+            return RES_OK;
+        case GET_SECTOR_SIZE:
+            *((WORD *)buff) = (WORD)tuh_msc_get_block_size(dev_addr, 0);
+            return RES_OK;
+        case GET_BLOCK_SIZE:
+            *((DWORD *)buff) = 1;
+            return RES_OK;
+        default:
+            return RES_PARERR;
     }
 }

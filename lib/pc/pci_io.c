@@ -5,37 +5,43 @@
 
 uint8_t pci_io_input_byte(uint8_t bus, uint8_t dev, uint8_t func, uint8_t reg)
 {
-    io_output_dword(PCI_CONFIG_ADDRESS, 0x80000000 | ((uint32_t)bus << 16) | ((uint32_t)dev << 11) | ((uint32_t)func << 8) | (reg & 0xFC));
+    io_output_dword(PCI_CONFIG_ADDRESS,
+                    0x80000000 | ((uint32_t)bus << 16) | ((uint32_t)dev << 11) | ((uint32_t)func << 8) | (reg & 0xFC));
     return io_input_byte(PCI_CONFIG_DATA + (reg & 3));
 }
 
 uint16_t pci_io_input_word(uint8_t bus, uint8_t dev, uint8_t func, uint8_t reg)
 {
-    io_output_dword(PCI_CONFIG_ADDRESS, 0x80000000 | ((uint32_t)bus << 16) | ((uint32_t)dev << 11) | ((uint32_t)func << 8) | (reg & 0xFC));
+    io_output_dword(PCI_CONFIG_ADDRESS,
+                    0x80000000 | ((uint32_t)bus << 16) | ((uint32_t)dev << 11) | ((uint32_t)func << 8) | (reg & 0xFC));
     return io_input_word(PCI_CONFIG_DATA + (reg & 2));
 }
 
 uint32_t pci_io_input_dword(uint8_t bus, uint8_t dev, uint8_t func, uint8_t reg)
 {
-    io_output_dword(PCI_CONFIG_ADDRESS, 0x80000000 | ((uint32_t)bus << 16) | ((uint32_t)dev << 11) | ((uint32_t)func << 8) | (reg & 0xFC));
+    io_output_dword(PCI_CONFIG_ADDRESS,
+                    0x80000000 | ((uint32_t)bus << 16) | ((uint32_t)dev << 11) | ((uint32_t)func << 8) | (reg & 0xFC));
     return io_input_dword(PCI_CONFIG_DATA);
 }
 
 void pci_io_output_byte(uint8_t bus, uint8_t dev, uint8_t func, uint8_t reg, uint8_t val)
 {
-    io_output_dword(PCI_CONFIG_ADDRESS, 0x80000000 | ((uint32_t)bus << 16) | ((uint32_t)dev << 11) | ((uint32_t)func << 8) | (reg & 0xFC));
+    io_output_dword(PCI_CONFIG_ADDRESS,
+                    0x80000000 | ((uint32_t)bus << 16) | ((uint32_t)dev << 11) | ((uint32_t)func << 8) | (reg & 0xFC));
     io_output_byte(PCI_CONFIG_DATA + (reg & 3), val);
 }
 
 void pci_io_output_word(uint8_t bus, uint8_t dev, uint8_t func, uint8_t reg, uint16_t val)
 {
-    io_output_dword(PCI_CONFIG_ADDRESS, 0x80000000 | ((uint32_t)bus << 16) | ((uint32_t)dev << 11) | ((uint32_t)func << 8) | (reg & 0xFC));
+    io_output_dword(PCI_CONFIG_ADDRESS,
+                    0x80000000 | ((uint32_t)bus << 16) | ((uint32_t)dev << 11) | ((uint32_t)func << 8) | (reg & 0xFC));
     io_output_word(PCI_CONFIG_DATA + (reg & 2), val);
 }
 
 void pci_io_output_dword(uint8_t bus, uint8_t dev, uint8_t func, uint8_t reg, uint32_t val)
 {
-    io_output_dword(PCI_CONFIG_ADDRESS, 0x80000000 | ((uint32_t)bus << 16) | ((uint32_t)dev << 11) | ((uint32_t)func << 8) | (reg & 0xFC));
+    io_output_dword(PCI_CONFIG_ADDRESS,
+                    0x80000000 | ((uint32_t)bus << 16) | ((uint32_t)dev << 11) | ((uint32_t)func << 8) | (reg & 0xFC));
     io_output_dword(PCI_CONFIG_DATA, val);
 }
 

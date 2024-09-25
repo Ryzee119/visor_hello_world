@@ -31,7 +31,8 @@ static inline __attribute__((always_inline)) void cpu_enable_cache(void)
     asm volatile("mov %0, %%cr0" : : "r"(cr0));
 }
 
-static inline __attribute__((always_inline)) void cpu_read_cpuid(uint32_t code, uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx)
+static inline __attribute__((always_inline)) void cpu_read_cpuid(uint32_t code, uint32_t *eax, uint32_t *ebx,
+                                                                 uint32_t *ecx, uint32_t *edx)
 {
     __asm__ volatile("cpuid" : "=a"(*eax), "=b"(*ebx), "=c"(*ecx), "=d"(*edx) : "a"(code));
 }

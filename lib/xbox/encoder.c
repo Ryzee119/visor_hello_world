@@ -107,8 +107,9 @@ void xbox_encoder_configure(uint32_t mode_coding, display_information_t *display
     const uint8_t is_sd_pal60 = ((mode_settings->dwStandard == VIDEO_REGION_PAL) && is_sd_pal50 == 0) ? 1 : 0;
     const uint8_t is_sd_ntscj = (mode_settings->dwStandard == VIDEO_REGION_NTSCJ) ? 1 : 0;
     const uint8_t is_sd_scart = (mode_coding & 0x20000000) ? 1 : 0;
-    const uint8_t is_sd_yuv = (mode_coding == 0x48030314) | (mode_coding == 0x48040415) | (mode_coding == 0x08010119) | (mode_coding == 0x0802021a) |
-                              (mode_coding == 0x0801010d) | (mode_coding == 0x0802020e); // Surely better way to know
+    const uint8_t is_sd_yuv = (mode_coding == 0x48030314) | (mode_coding == 0x48040415) | (mode_coding == 0x08010119) |
+                              (mode_coding == 0x0802021a) | (mode_coding == 0x0801010d) |
+                              (mode_coding == 0x0802020e); // Surely better way to know
 
     const uint16_t hsync_width = display_info->hsync_end - display_info->hsync_start;
     const uint16_t hsync_frontporch_width = display_info->hsync_start - display_info->hdisplay_end;
@@ -121,61 +122,62 @@ void xbox_encoder_configure(uint32_t mode_coding, display_information_t *display
     // const uint16_t vsync_delay = vsync_backporch_height + height + vsync_height;
     // const uint8_t is_wss = (mode_coding & 0x10000000) ? 1 : 0;
 
-    XPRINTF("[ENCODER] Configuring %s encoder\n", (current_encoder_address == XBOX_SMBUS_ADDRESS_ENCODER_CONEXANT) ? "Conexant"
-                                                  : (current_encoder_address == XBOX_SMBUS_ADDRESS_ENCODER_FOCUS)  ? "Focus"
-                                                                                                                   : "Xcalibur");
+    XPRINTF("[ENCODER] Configuring %s encoder\n",
+            (current_encoder_address == XBOX_SMBUS_ADDRESS_ENCODER_CONEXANT) ? "Conexant"
+            : (current_encoder_address == XBOX_SMBUS_ADDRESS_ENCODER_FOCUS)  ? "Focus"
+                                                                             : "Xcalibur");
 
     switch (current_encoder_address) {
-        case XBOX_SMBUS_ADDRESS_ENCODER_XCALIBUR:
-            for (uint8_t i = 0; i < XBOX_ARRAY_SIZE(XCALIBUR_LOOKUP_INDEX); i++) {
-                if (XCALIBUR_VALUES[XCALIBUR_LOOKUP_INDEX[i][0]] == mode_coding) {
-                    lookup_row = i;
-                    break;
-                }
+    case XBOX_SMBUS_ADDRESS_ENCODER_XCALIBUR:
+        for (uint8_t i = 0; i < XBOX_ARRAY_SIZE(XCALIBUR_LOOKUP_INDEX); i++) {
+            if (XCALIBUR_VALUES[XCALIBUR_LOOKUP_INDEX[i][0]] == mode_coding) {
+                lookup_row = i;
+                break;
             }
-            if (lookup_row == 0xFF) {
-                assert(0);
-                return;
+        }
+        if (lookup_row == 0xFF) {
+            assert(0);
+            return;
+        }
+
+        // Set output timing
+        for (uint8_t i = 1; i < sizeof(XCALIBUR_OFFSETS); i++) {
+            uint8_t command = XCALIBUR_OFFSETS[i];
+            uint32_t value = XCALIBUR_VALUES[XCALIBUR_LOOKUP_INDEX[lookup_row][i]];
+            xbox_smbus_output_dword(current_encoder_address, command, value);
+        }
+
+        // Enable SCART
+        if (is_sd_scart) {
+            xbox_smbus_input_dword(current_encoder_address, 0x01, &temp);
+            xbox_smbus_output_dword(current_encoder_address, 0x01, (temp & 0xfcffffff) | 0xc00008);
+            xbox_smbus_input_dword(current_encoder_address, 0x60, &temp);
+            xbox_smbus_output_dword(current_encoder_address, 0x60, temp & 0xfeffffff);
+            xbox_smbus_output_dword(current_encoder_address, 0x58, 0x00000000);
+        }
+
+        // Some kind of HD mode setup?
+        if (mode_coding & 0xC0000000) {
+            if ((mode_coding & 0xC0000000) == 0x80000000) {
+                xbox_smbus_output_dword(current_encoder_address, 0x07, 0x00000000);
             }
+            xbox_smbus_output_dword(current_encoder_address, 0x09, 0x00000000);
+        }
 
-            // Set output timing
-            for (uint8_t i = 1; i < sizeof(XCALIBUR_OFFSETS); i++) {
-                uint8_t command = XCALIBUR_OFFSETS[i];
-                uint32_t value = XCALIBUR_VALUES[XCALIBUR_LOOKUP_INDEX[lookup_row][i]];
-                xbox_smbus_output_dword(current_encoder_address, command, value);
-            }
+        // ?
+        xbox_smbus_input_dword(current_encoder_address, 0x00, &temp);
+        xbox_smbus_output_dword(current_encoder_address, 0x00, temp | 2);
 
-            // Enable SCART
-            if (is_sd_scart) {
-                xbox_smbus_input_dword(current_encoder_address, 0x01, &temp);
-                xbox_smbus_output_dword(current_encoder_address, 0x01, (temp & 0xfcffffff) | 0xc00008);
-                xbox_smbus_input_dword(current_encoder_address, 0x60, &temp);
-                xbox_smbus_output_dword(current_encoder_address, 0x60, temp & 0xfeffffff);
-                xbox_smbus_output_dword(current_encoder_address, 0x58, 0x00000000);
-            }
+        // ?
+        xbox_smbus_output_dword(current_encoder_address, 0x0C, 0x0000000F);
+        xbox_smbus_output_dword(current_encoder_address, 0x0D, 0x00000000);
+        xbox_smbus_output_dword(current_encoder_address, 0x0E, 0x00000001);
 
-            // Some kind of HD mode setup?
-            if (mode_coding & 0xC0000000) {
-                if ((mode_coding & 0xC0000000) == 0x80000000) {
-                    xbox_smbus_output_dword(current_encoder_address, 0x07, 0x00000000);
-                }
-                xbox_smbus_output_dword(current_encoder_address, 0x09, 0x00000000);
-            }
-
-            // ?
-            xbox_smbus_input_dword(current_encoder_address, 0x00, &temp);
-            xbox_smbus_output_dword(current_encoder_address, 0x00, temp | 2);
-
-            // ?
-            xbox_smbus_output_dword(current_encoder_address, 0x0C, 0x0000000F);
-            xbox_smbus_output_dword(current_encoder_address, 0x0D, 0x00000000);
-            xbox_smbus_output_dword(current_encoder_address, 0x0E, 0x00000001);
-
-            break;
-        case XBOX_SMBUS_ADDRESS_ENCODER_CONEXANT:
-            break;
-        case XBOX_SMBUS_ADDRESS_ENCODER_FOCUS: {
-            // clang-format off
+        break;
+    case XBOX_SMBUS_ADDRESS_ENCODER_CONEXANT:
+        break;
+    case XBOX_SMBUS_ADDRESS_ENCODER_FOCUS: {
+        // clang-format off
 
             // For the most part, xbox doesnt write to focus in words, but two bytes separately.
             // Probably not necessary to do this, but it's more accurate to the original code.
@@ -191,64 +193,66 @@ void xbox_encoder_configure(uint32_t mode_coding, display_information_t *display
 
             #define P50_P60_NTSCM_NTSCJ(a, b, c, d) \
                 ((is_sd_pal50) ? a : (is_sd_pal60) ? b : (is_sd_ntscj) ? d : c)
-            // clang-format on
+        // clang-format on
 
-            // Soft reset of encoder begin - maintain reset while bit 0 is set
-            FOCUS_OUTPUT_WORD(FOCUS_CTRL_CR_16, 0x0001);
+        // Soft reset of encoder begin - maintain reset while bit 0 is set
+        FOCUS_OUTPUT_WORD(FOCUS_CTRL_CR_16, 0x0001);
 
-            if (!is_ed) {
-                // Some constant pre-initialization values for SD modes
-                static const uint8_t focus_pre_data[][2] = {
-                    {0x12, 0x00}, {0x13, 0x00}, {0x16, 0x00}, {0x17, 0x00}, {0x18, 0xef}, {0x19, 0x43}, {0x1c, 0x07}, {0x1d, 0x07}, {0x24, 0x00}, {0x25, 0x00},
-                    {0x26, 0x10}, {0x27, 0x00}, {0x44, 0x00}, {0x45, 0x00}, {0x4d, 0x01}, {0x5e, 0xc8}, {0x5f, 0x00}, {0x65, 0x00}, {0x75, 0x10}, {0x83, 0x18},
-                    {0x84, 0x00}, {0x85, 0x00}, {0x86, 0x18}, {0x87, 0x00}, {0x88, 0x00}, {0x8b, 0x9c}, {0x8c, 0x03}, {0x9e, 0xe4}, {0x9f, 0x00}, {0xa0, 0x00},
-                    {0xa1, 0x02}, {0xa2, 0x00}, {0xa3, 0x00}, {0xa4, 0x00}, {0xa5, 0x00}, {0xa6, 0x00}, {0xa7, 0x00}, {0xa8, 0x00}, {0xa9, 0x01}, {0xaa, 0x00},
-                    {0xab, 0x01}, {0xac, 0x00}, {0xad, 0x01}, {0xb6, 0xf0}, {0xb7, 0x00}, {0xc2, 0xee}, {0xc3, 0x00}};
+        if (!is_ed) {
+            // Some constant pre-initialization values for SD modes
+            static const uint8_t focus_pre_data[][2] = {
+                {0x12, 0x00}, {0x13, 0x00}, {0x16, 0x00}, {0x17, 0x00}, {0x18, 0xef}, {0x19, 0x43}, {0x1c, 0x07},
+                {0x1d, 0x07}, {0x24, 0x00}, {0x25, 0x00}, {0x26, 0x10}, {0x27, 0x00}, {0x44, 0x00}, {0x45, 0x00},
+                {0x4d, 0x01}, {0x5e, 0xc8}, {0x5f, 0x00}, {0x65, 0x00}, {0x75, 0x10}, {0x83, 0x18}, {0x84, 0x00},
+                {0x85, 0x00}, {0x86, 0x18}, {0x87, 0x00}, {0x88, 0x00}, {0x8b, 0x9c}, {0x8c, 0x03}, {0x9e, 0xe4},
+                {0x9f, 0x00}, {0xa0, 0x00}, {0xa1, 0x02}, {0xa2, 0x00}, {0xa3, 0x00}, {0xa4, 0x00}, {0xa5, 0x00},
+                {0xa6, 0x00}, {0xa7, 0x00}, {0xa8, 0x00}, {0xa9, 0x01}, {0xaa, 0x00}, {0xab, 0x01}, {0xac, 0x00},
+                {0xad, 0x01}, {0xb6, 0xf0}, {0xb7, 0x00}, {0xc2, 0xee}, {0xc3, 0x00}};
 
-                for (uint8_t i = 0; i < sizeof(focus_pre_data) / 2; i++) {
-                    FOCUS_OUTPUT_BYTE(focus_pre_data[i][0], focus_pre_data[i][1]);
-                }
+            for (uint8_t i = 0; i < sizeof(focus_pre_data) / 2; i++) {
+                FOCUS_OUTPUT_BYTE(focus_pre_data[i][0], focus_pre_data[i][1]);
             }
+        }
 
-            FOCUS_OUTPUT_WORD(FOCUS_CTRL_CR_16, (is_sd_pal50) ? 0x2101 : 0x2001);
-            FOCUS_OUTPUT_WORD(FOCUS_CTRL_MISC_16, 0x0015);
+        FOCUS_OUTPUT_WORD(FOCUS_CTRL_CR_16, (is_sd_pal50) ? 0x2101 : 0x2001);
+        FOCUS_OUTPUT_WORD(FOCUS_CTRL_MISC_16, 0x0015);
 
-            int32_t scale_height = 0;
-            if (is_ed) {
-                FOCUS_OUTPUT_WORD(FOCUS_CTRL_BYPASS_16, 0x00);
+        int32_t scale_height = 0;
+        if (is_ed) {
+            FOCUS_OUTPUT_WORD(FOCUS_CTRL_BYPASS_16, 0x00);
+        } else {
+            FOCUS_OUTPUT_WORD(FOCUS_SDTVI_IHO_16, hsync_width + hsync_backporch_width);
+            FOCUS_OUTPUT_WORD(FOCUS_SDTVI_IVO_16, vsync_height + vsync_backporch_height);
+            FOCUS_OUTPUT_WORD(FOCUS_SDTVI_IHW_16, width);
+
+            // For PAL50, scale vertical to 625 lines.
+            // For NTSC or PAL60, scale vertical to 525 lines. See Focus datasheet 2.2.1.4 for equation
+            if (is_sd_pal50) {
+                scale_height = (65536 * 625) / (display_info->vtotal + 1) - 65536;
             } else {
-                FOCUS_OUTPUT_WORD(FOCUS_SDTVI_IHO_16, hsync_width + hsync_backporch_width);
-                FOCUS_OUTPUT_WORD(FOCUS_SDTVI_IVO_16, vsync_height + vsync_backporch_height);
-                FOCUS_OUTPUT_WORD(FOCUS_SDTVI_IHW_16, width);
+                // NTSC and PAL60 is already 525 lines so this should be zero
+                scale_height = (65536 * 525) / (display_info->vtotal + 1) - 65536;
+            }
+            FOCUS_OUTPUT_WORD(FOCUS_SDTVI_VSC_16, (int16_t)scale_height);
 
-                // For PAL50, scale vertical to 625 lines.
-                // For NTSC or PAL60, scale vertical to 525 lines. See Focus datasheet 2.2.1.4 for equation
-                if (is_sd_pal50) {
-                    scale_height = (65536 * 625) / (display_info->vtotal + 1) - 65536;
-                } else {
-                    // NTSC and PAL60 is already 525 lines so this should be zero
-                    scale_height = (65536 * 525) / (display_info->vtotal + 1) - 65536;
-                }
-                FOCUS_OUTPUT_WORD(FOCUS_SDTVI_VSC_16, (int16_t)scale_height);
-
-                // Always scale horizontal to 720 pixels. See Focus datasheet 2.2.1.5 for equation
-                int32_t scale_width = (128 * 720) / width - 128;
-                if (scale_width <= 0) {
-                    FOCUS_OUTPUT_BYTE(FOCUS_SDTVI_HSCD_8, (int8_t)scale_width);
-                    FOCUS_OUTPUT_BYTE(FOCUS_SDTVI_HSCU_8, 0);
-                } else if (scale_width > 0) {
-                    FOCUS_OUTPUT_BYTE(FOCUS_SDTVI_HSCD_8, 0);
-                    FOCUS_OUTPUT_BYTE(FOCUS_SDTVI_HSCU_8, (int8_t)scale_width);
-                }
-
-                // Datasheet implies it should be 0xA4 only for downscaling, but xbox does it for upscaling too
-                FOCUS_OUTPUT_WORD(FOCUS_SDTVI_FIFO_LAT_16, (scale_height != 0) ? 0x00A4 : 0x0082);
+            // Always scale horizontal to 720 pixels. See Focus datasheet 2.2.1.5 for equation
+            int32_t scale_width = (128 * 720) / width - 128;
+            if (scale_width <= 0) {
+                FOCUS_OUTPUT_BYTE(FOCUS_SDTVI_HSCD_8, (int8_t)scale_width);
+                FOCUS_OUTPUT_BYTE(FOCUS_SDTVI_HSCU_8, 0);
+            } else if (scale_width > 0) {
+                FOCUS_OUTPUT_BYTE(FOCUS_SDTVI_HSCD_8, 0);
+                FOCUS_OUTPUT_BYTE(FOCUS_SDTVI_HSCU_8, (int8_t)scale_width);
             }
 
-            // PLL CLK setup
-            {
-                // PLL Setup (Pretty intensive calc, have a lookup for common modes?)
-                // clang-format off
+            // Datasheet implies it should be 0xA4 only for downscaling, but xbox does it for upscaling too
+            FOCUS_OUTPUT_WORD(FOCUS_SDTVI_FIFO_LAT_16, (scale_height != 0) ? 0x00A4 : 0x0082);
+        }
+
+        // PLL CLK setup
+        {
+            // PLL Setup (Pretty intensive calc, have a lookup for common modes?)
+            // clang-format off
                 // Figure 2, this is the PLL stages for Focus.
                 // XTAL * NCON / NCOD = nco_out -> / pll_n = pll_inp -> * pll_m = pll_outp -> / IP/EP Divider = actual_clock.
                 // pll_inp must be 100 kHz to 1000 kHz.
@@ -256,214 +260,217 @@ void xbox_encoder_configure(uint32_t mode_coding, display_information_t *display
                 // Pll_n must be 27 to 270.
                 // Pll_m must be 250 to 3000.
                 // IP/EP divider (out_div) must be 1 to 16, IP generally equal EP. Will be in this case.
-                // clang-format on
-                const uint32_t XTAL_IN = 27000000;
-                uint32_t nco_divider, pll_n, pll_m, out_div, actual_clock, found = 0;
-                uint16_t pllg;
+            // clang-format on
+            const uint32_t XTAL_IN = 27000000;
+            uint32_t nco_divider, pll_n, pll_m, out_div, actual_clock, found = 0;
+            uint16_t pllg;
 
-                uint32_t desired_clock = (display_info->vtotal + 1) * (display_info->htotal + 1);
-                if (is_sd_pal50) {
-                    desired_clock = desired_clock * 50;
-                } else {
-                    desired_clock = ((uint64_t)desired_clock * 5994ULL) / 100ULL; // 59.94Hz without float
-                }
-
-                if (is_hd_interlaced) {
-                    desired_clock /= 2;
-                }
-
-                // Between 2^24 and 2. But start at a reasonable number
-                for (nco_divider = 16; nco_divider >= 2; nco_divider--) {
-                    uint32_t nco_out = XTAL_IN / nco_divider;
-
-                    // Start at a low divider to try prevent pll_m being a big multiplier
-                    for (pll_n = 2; pll_n <= 270; pll_n++) {
-                        uint32_t pll_inp = nco_out / pll_n;
-
-                        // pll_inp must be 100 kHz to 1000 kHz, but we limit to 500khz
-                        // beacuse of Table 10 in the Focus datasheet.
-                        if (pll_inp > 500000) {
-                            continue;
-
-                        } else if (pll_inp < 100000) {
-                            break; // Divider is increasing so we can break
-                        }
-
-                        // Start at the smallest multiplier
-                        for (pll_m = 250; pll_m < 3000; pll_m++) {
-                            uint32_t pll_outp = pll_inp * pll_m;
-
-                            // pll_outp must be 100 MHz to 300 MHz
-                            if (pll_outp < 100000000) {
-                                continue;
-                            } else if (pll_outp > 300000000) {
-                                break; // Multiplier is increasing so we can break
-                            }
-
-                            // Now determine the final output dividier
-                            for (out_div = 16; out_div >= 1; out_div--) {
-                                actual_clock = pll_outp / out_div;
-
-                                if (actual_clock > 150000000) {
-                                    break;
-                                }
-
-                                // if final output is within 1Hz of desired clock, we found a match
-                                if (actual_clock >= desired_clock - 1 && actual_clock <= desired_clock + 1) {
-                                    // XPRINTF("pllin %d kHz, pllout %d Mhz\n", pll_inp / 1000, pll_outp / 1000000);
-                                    found = 1;
-
-                                    // Work out the correct charge pump value
-                                    // Refer Table 10 in the Focus datasheet
-                                    uint32_t pllin_khz = pll_inp / 1000;
-                                    uint32_t pllout_mhz = pll_outp / 1000000;
-
-                                    pllout_mhz = ((pllout_mhz + 25) / 50) * 50; // Round to closest 50
-                                    pllg = (pllout_mhz * 2) / 100 - 1;
-                                    if (pllin_khz > 150 && pllin_khz <= 400) {
-                                        pllg += 1;
-                                    } else if (pllin_khz > 750) {
-                                        pllg -= 1;
-                                    }
-                                    pllg = XBOX_CLAMP(1, pllg, 5);
-                                    goto pll_search_finished;
-
-                                } else {
-                                    continue;
-                                }
-                            }
-                        }
-                    }
-                }
-            pll_search_finished:
-                if (found) {
-                    pll_m = pll_m - 17;                             // Programmed as M-17
-                    pll_n = pll_n - 1;                              // Programmed as N-1
-                    out_div = out_div - 1;                          // Programmed as IP-1
-                    FOCUS_OUTPUT_WORD(FOCUS_CLOCK_NCON_32, 0x0001); // for simplicity numerator is always 1
-                    if (is_ed) {
-                        FOCUS_OUTPUT_WORD(FOCUS_CLOCK_NCON_32 + 2, 0x000);
-                    }
-                    FOCUS_OUTPUT_WORD(FOCUS_CLOCK_NCOD_32, (uint16_t)(nco_divider & 0xFFFF));
-                    if (is_ed) {
-                        FOCUS_OUTPUT_WORD(FOCUS_CLOCK_NCOD_32 + 2, (uint16_t)((nco_divider >> 16) & 0xFFFF));
-                    }
-
-                    FOCUS_OUTPUT_WORD(FOCUS_CLOCK_PLLM_PUMP_16, (pllg << 12) | (pll_m & 0xFFF));
-                    FOCUS_OUTPUT_WORD(FOCUS_CLOCK_PLLN_16, (uint16_t)pll_n);
-
-                    FOCUS_OUTPUT_WORD(FOCUS_CLOCK_POST_DIVIDER_16, (uint16_t)(out_div << 8 | out_div));
-                } else {
-                    XPRINTF("[ENCODER] Failed to find PLL values for Focus encoder\n");
-                }
-            }
-
-            if (is_ed) {
-                FOCUS_OUTPUT_WORD(FOCUS_CTRL_VIDCNTRL0_16, ED_HD_HDI(0x483E, 0x582E, 0x58AE));
-                FOCUS_OUTPUT_WORD(FOCUS_CTRL_9A_16, ED_HD_HDI(0x4000, 0x4000, 0x0001));
-                FOCUS_OUTPUT_WORD(FOCUS_CTRL_DACCNTL_16, 0x00E4);
-                FOCUS_OUTPUT_WORD(FOCUS_CTRL_PWR_MGNT_16, 0x0400);
-
-                // Reset closed caption stuff
-                FOCUS_OUTPUT_WORD(FOCUS_SDTVO_CCC_16, 0x0000);
-                FOCUS_OUTPUT_WORD(FOCUS_SDTVO_CC_BLANK_SPL_16, 0x00F0);
-
-                // Setup colour matrix
-                FOCUS_OUTPUT_WORD(FOCUS_COL_MATRIX_RED_COEFF_16, 0x0000);
-                FOCUS_OUTPUT_WORD(FOCUS_COL_MATRIX_GREEN_COEFF_16, 0x0000);
-                FOCUS_OUTPUT_WORD(FOCUS_COL_MATRIX_BLUE_COEFF_16, 0x0000);
-                FOCUS_OUTPUT_WORD(FOCUS_COL_MATRIX_RED_SCALE_16, 0x009D);
-                FOCUS_OUTPUT_WORD(FOCUS_COL_MATRIX_GREEN_SCALE_16, 0x00A5);
-                FOCUS_OUTPUT_WORD(FOCUS_COL_MATRIX_BLUE_SCALE_16, 0x009D);
-
-                // Setup output timing
-                FOCUS_OUTPUT_WORD(FOCUS_HDTV_OUT_HD_FP_SYNC_16, hsync_backporch_width << 8 | hsync_width);
-                FOCUS_OUTPUT_WORD(FOCUS_HDTV_OUT_HD_YOFF_BP_16, (0 << 8) | hsync_backporch_width);
-                FOCUS_OUTPUT_WORD(FOCUS_HDTV_OUT_SYNC_DL_16, hsync_delay);
-                FOCUS_OUTPUT_WORD(FOCUS_HDTV_OUT_HACT_ST_16, hsync_frontporch_width + hsync_width + hsync_backporch_width);
-                FOCUS_OUTPUT_WORD(FOCUS_HDTV_OUT_HACT_WD_16, width);
-                FOCUS_OUTPUT_WORD(FOCUS_HDTV_OUT_VACT_ST_16, vsync_frontporch_height + vsync_height + vsync_backporch_height);
-                FOCUS_OUTPUT_WORD(FOCUS_HDTV_OUT_VACT_HT_16, height);
-
+            uint32_t desired_clock = (display_info->vtotal + 1) * (display_info->htotal + 1);
+            if (is_sd_pal50) {
+                desired_clock = desired_clock * 50;
             } else {
-                // Set the chroma frequency - Fixed values
-                uint32_t chr_freq = P50_P60_NTSCM_NTSCJ(0xCB8A092A, 0x5389092A, 0x1F7CF021, 0x1F7CF021);
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_CHR_FREQ_32 + 0, (chr_freq >> 0) & 0xFF);
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_CHR_FREQ_32 + 1, (chr_freq >> 8) & 0xFF);
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_CHR_FREQ_32 + 2, (chr_freq >> 16) & 0xFF);
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_CHR_FREQ_32 + 3, (chr_freq >> 24) & 0xFF);
+                desired_clock = ((uint64_t)desired_clock * 5994ULL) / 100ULL; // 59.94Hz without float
+            }
 
-                // 0x8D for PAL and 0x89 for NTSC - Just fixed values
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_MISC46_8, (is_sd_pal50 || is_sd_pal60) ? 0x8D : 0x89);
+            if (is_hd_interlaced) {
+                desired_clock /= 2;
+            }
 
-                // Setup YUV
-                uint8_t misc_47 = (is_sd_yuv) ? 0x0C : 0x00;
-                uint8_t misc_74 = P50_P60_NTSCM_NTSCJ(0x49, 0x51, 0x04, 0x04);
-                if (is_sd_yuv) {
-                    misc_74 |= 0x20;
+            // Between 2^24 and 2. But start at a reasonable number
+            for (nco_divider = 16; nco_divider >= 2; nco_divider--) {
+                uint32_t nco_out = XTAL_IN / nco_divider;
+
+                // Start at a low divider to try prevent pll_m being a big multiplier
+                for (pll_n = 2; pll_n <= 270; pll_n++) {
+                    uint32_t pll_inp = nco_out / pll_n;
+
+                    // pll_inp must be 100 kHz to 1000 kHz, but we limit to 500khz
+                    // beacuse of Table 10 in the Focus datasheet.
+                    if (pll_inp > 500000) {
+                        continue;
+
+                    } else if (pll_inp < 100000) {
+                        break; // Divider is increasing so we can break
+                    }
+
+                    // Start at the smallest multiplier
+                    for (pll_m = 250; pll_m < 3000; pll_m++) {
+                        uint32_t pll_outp = pll_inp * pll_m;
+
+                        // pll_outp must be 100 MHz to 300 MHz
+                        if (pll_outp < 100000000) {
+                            continue;
+                        } else if (pll_outp > 300000000) {
+                            break; // Multiplier is increasing so we can break
+                        }
+
+                        // Now determine the final output dividier
+                        for (out_div = 16; out_div >= 1; out_div--) {
+                            actual_clock = pll_outp / out_div;
+
+                            if (actual_clock > 150000000) {
+                                break;
+                            }
+
+                            // if final output is within 1Hz of desired clock, we found a match
+                            if (actual_clock >= desired_clock - 1 && actual_clock <= desired_clock + 1) {
+                                // XPRINTF("pllin %d kHz, pllout %d Mhz\n", pll_inp / 1000, pll_outp / 1000000);
+                                found = 1;
+
+                                // Work out the correct charge pump value
+                                // Refer Table 10 in the Focus datasheet
+                                uint32_t pllin_khz = pll_inp / 1000;
+                                uint32_t pllout_mhz = pll_outp / 1000000;
+
+                                pllout_mhz = ((pllout_mhz + 25) / 50) * 50; // Round to closest 50
+                                pllg = (pllout_mhz * 2) / 100 - 1;
+                                if (pllin_khz > 150 && pllin_khz <= 400) {
+                                    pllg += 1;
+                                } else if (pllin_khz > 750) {
+                                    pllg -= 1;
+                                }
+                                pllg = XBOX_CLAMP(1, pllg, 5);
+                                goto pll_search_finished;
+
+                            } else {
+                                continue;
+                            }
+                        }
+                    }
                 }
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_MISC47_8, misc_47);
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_MISC_74_8, misc_74);
-
-                // Output timing
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_HSYNC_WID_8, P50_P60_NTSCM_NTSCJ(0x7C, 0x7C, 0x7C, 0x7C));
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_BURST_WID_8, P50_P60_NTSCM_NTSCJ(0x3C, 0x40, 0x40, 0x40));
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_BPORCH_8, P50_P60_NTSCM_NTSCJ(0x9A, 0x80, 0x80, 0x80));
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_CB_BURST_8, P50_P60_NTSCM_NTSCJ(0x2F, 0x2F, 0x3E, 0x3E));
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_CR_BURST_8, P50_P60_NTSCM_NTSCJ(0x21, 0x21, 0x00, 0x00));
-                FOCUS_OUTPUT_WORD(FOCUS_SDTVO_BLACK_LVL_16, P50_P60_NTSCM_NTSCJ(0x003F, 0x003F, 0x0246, 0x013C));
-                FOCUS_OUTPUT_WORD(FOCUS_SDTVO_BLANK_LVL16, P50_P60_NTSCM_NTSCJ(0x033E, 0x033E, 0x003C, 0x003C));
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_CB_GAIN_8, P50_P60_NTSCM_NTSCJ(0x9D, 0x9D, 0x91, 0x9D));
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_CR_GAIN_8, P50_P60_NTSCM_NTSCJ(0x9D, 0x9D, 0x91, 0x9D));
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_BR_WAY_8, P50_P60_NTSCM_NTSCJ(0x1A, 0x19, 0x19, 0x19));
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_FR_PORCH_8, P50_P60_NTSCM_NTSCJ(0x1E, 0x24, 0x24, 0x24));
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_1ST_LINE_8, P50_P60_NTSCM_NTSCJ(0x15, 0x11, 0x14, 0x14));
-                FOCUS_OUTPUT_WORD(FOCUS_SDTVO_VBI_BL_LVL_16, P50_P60_NTSCM_NTSCJ(0x033E, 0x033E, 0x003C, 0x003C));
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_WSS_CONFIG_8, P50_P60_NTSCM_NTSCJ(0x57, 0x67, 0x67, 0x67));
-                FOCUS_OUTPUT_WORD(FOCUS_SDTVO_WSS_CLK_16, P50_P60_NTSCM_NTSCJ(0x072F, 0x0C21, 0x0C21, 0x0C21));
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_WSS_LNF1_8, P50_P60_NTSCM_NTSCJ(0x16, 0x10, 0x13, 0x13));
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_WSS_LNF0_8, P50_P60_NTSCM_NTSCJ(0x16, 0x10, 0x13, 0x13));
-                FOCUS_OUTPUT_WORD(FOCUS_SDTVO_CCC_16, P50_P60_NTSCM_NTSCJ(0x05D7, 0x0596, 0x0555, 0x0555));
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_PR_SC_8, is_sd_yuv ? 0x93 : 0x00);
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_PB_SC_8, is_sd_yuv ? 0x93 : 0x00);
-
-                FOCUS_OUTPUT_WORD(FOCUS_CTRL_VIDCNTRL0_16, (is_sd_yuv) ? 0x48C5 : 0x48c4);
-                FOCUS_OUTPUT_WORD(FOCUS_CTRL_9A_16, (is_sd_pal50) ? 0x8000 : 0x0000);
             }
-
-            FOCUS_OUTPUT_WORD(FOCUS_CTRL_CR_16, is_sd_pal50 ? 0x2103 : 0x2003);
-            FOCUS_OUTPUT_WORD(FOCUS_CTRL_MISC_16, 0x0415);
-            FOCUS_OUTPUT_WORD(FOCUS_CTRL_CR_16, is_sd_pal50 ? 0x2100 : 0x2000);
-
-            // Weirdly, xbox only does this if EEPROM is set to NTSCJ? Surely we should do it for all NTSCJ formats
-            if ((mode_settings->dwStandard == VIDEO_REGION_NTSCJ) && (mode_coding == 0x0802020e || mode_coding == 0x0801010d)) {
-                FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_BLACK_LVL_16, 0x3C);
-            }
-
-            if (is_sd_scart) {
-                // FIXME, These actually first read the register then clear/set bits as required.
-                // Turns out on xbox they are always the same anyway
-                const uint8_t scart_enable[][2] = {{0x92, 0xC1}, {0x93, 0x08}, {0xA2, 0x4D}, {0xA3, 0x00}, {0xA4, 0x96}, {0xA5, 0x00}, {0xA6, 0x1D},
-                                                   {0xA7, 0x00}, {0xA8, 0xA0}, {0xA9, 0x00}, {0xAA, 0xDB}, {0xAB, 0x00}, {0xAC, 0x7E}, {0xAD, 0x00}};
-                for (uint8_t i = 0; i < sizeof(scart_enable) / 2; i++) {
-                    xbox_smbus_input_byte(current_encoder_address, scart_enable[i][0], (uint8_t *)&temp);
-                    FOCUS_OUTPUT_BYTE(scart_enable[i][0], scart_enable[i][1]);
+        pll_search_finished:
+            if (found) {
+                pll_m = pll_m - 17;                             // Programmed as M-17
+                pll_n = pll_n - 1;                              // Programmed as N-1
+                out_div = out_div - 1;                          // Programmed as IP-1
+                FOCUS_OUTPUT_WORD(FOCUS_CLOCK_NCON_32, 0x0001); // for simplicity numerator is always 1
+                if (is_ed) {
+                    FOCUS_OUTPUT_WORD(FOCUS_CLOCK_NCON_32 + 2, 0x000);
                 }
-            }
+                FOCUS_OUTPUT_WORD(FOCUS_CLOCK_NCOD_32, (uint16_t)(nco_divider & 0xFFFF));
+                if (is_ed) {
+                    FOCUS_OUTPUT_WORD(FOCUS_CLOCK_NCOD_32 + 2, (uint16_t)((nco_divider >> 16) & 0xFFFF));
+                }
 
-            // Set wide screen signalling for sdtv
-            if (!is_ed) {
-                FOCUS_OUTPUT_BYTE(0x85, (is_sd_pal50) ? 0x08 : 0x00);
-                FOCUS_OUTPUT_BYTE(0x84, 0x00);
-                FOCUS_OUTPUT_BYTE(0x83, (is_sd_pal50) ? 0x00 : 0x18);
-                FOCUS_OUTPUT_BYTE(0x88, (is_sd_pal50) ? 0x08 : 0x00);
-                FOCUS_OUTPUT_BYTE(0x87, 0x00);
-                FOCUS_OUTPUT_BYTE(0x86, (is_sd_pal50) ? 0x00 : 0x18);
+                FOCUS_OUTPUT_WORD(FOCUS_CLOCK_PLLM_PUMP_16, (pllg << 12) | (pll_m & 0xFFF));
+                FOCUS_OUTPUT_WORD(FOCUS_CLOCK_PLLN_16, (uint16_t)pll_n);
+
+                FOCUS_OUTPUT_WORD(FOCUS_CLOCK_POST_DIVIDER_16, (uint16_t)(out_div << 8 | out_div));
+            } else {
+                XPRINTF("[ENCODER] Failed to find PLL values for Focus encoder\n");
             }
         }
 
-        break;
-        default:
-            return;
+        if (is_ed) {
+            FOCUS_OUTPUT_WORD(FOCUS_CTRL_VIDCNTRL0_16, ED_HD_HDI(0x483E, 0x582E, 0x58AE));
+            FOCUS_OUTPUT_WORD(FOCUS_CTRL_9A_16, ED_HD_HDI(0x4000, 0x4000, 0x0001));
+            FOCUS_OUTPUT_WORD(FOCUS_CTRL_DACCNTL_16, 0x00E4);
+            FOCUS_OUTPUT_WORD(FOCUS_CTRL_PWR_MGNT_16, 0x0400);
+
+            // Reset closed caption stuff
+            FOCUS_OUTPUT_WORD(FOCUS_SDTVO_CCC_16, 0x0000);
+            FOCUS_OUTPUT_WORD(FOCUS_SDTVO_CC_BLANK_SPL_16, 0x00F0);
+
+            // Setup colour matrix
+            FOCUS_OUTPUT_WORD(FOCUS_COL_MATRIX_RED_COEFF_16, 0x0000);
+            FOCUS_OUTPUT_WORD(FOCUS_COL_MATRIX_GREEN_COEFF_16, 0x0000);
+            FOCUS_OUTPUT_WORD(FOCUS_COL_MATRIX_BLUE_COEFF_16, 0x0000);
+            FOCUS_OUTPUT_WORD(FOCUS_COL_MATRIX_RED_SCALE_16, 0x009D);
+            FOCUS_OUTPUT_WORD(FOCUS_COL_MATRIX_GREEN_SCALE_16, 0x00A5);
+            FOCUS_OUTPUT_WORD(FOCUS_COL_MATRIX_BLUE_SCALE_16, 0x009D);
+
+            // Setup output timing
+            FOCUS_OUTPUT_WORD(FOCUS_HDTV_OUT_HD_FP_SYNC_16, hsync_backporch_width << 8 | hsync_width);
+            FOCUS_OUTPUT_WORD(FOCUS_HDTV_OUT_HD_YOFF_BP_16, (0 << 8) | hsync_backporch_width);
+            FOCUS_OUTPUT_WORD(FOCUS_HDTV_OUT_SYNC_DL_16, hsync_delay);
+            FOCUS_OUTPUT_WORD(FOCUS_HDTV_OUT_HACT_ST_16, hsync_frontporch_width + hsync_width + hsync_backporch_width);
+            FOCUS_OUTPUT_WORD(FOCUS_HDTV_OUT_HACT_WD_16, width);
+            FOCUS_OUTPUT_WORD(FOCUS_HDTV_OUT_VACT_ST_16,
+                              vsync_frontporch_height + vsync_height + vsync_backporch_height);
+            FOCUS_OUTPUT_WORD(FOCUS_HDTV_OUT_VACT_HT_16, height);
+
+        } else {
+            // Set the chroma frequency - Fixed values
+            uint32_t chr_freq = P50_P60_NTSCM_NTSCJ(0xCB8A092A, 0x5389092A, 0x1F7CF021, 0x1F7CF021);
+            FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_CHR_FREQ_32 + 0, (chr_freq >> 0) & 0xFF);
+            FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_CHR_FREQ_32 + 1, (chr_freq >> 8) & 0xFF);
+            FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_CHR_FREQ_32 + 2, (chr_freq >> 16) & 0xFF);
+            FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_CHR_FREQ_32 + 3, (chr_freq >> 24) & 0xFF);
+
+            // 0x8D for PAL and 0x89 for NTSC - Just fixed values
+            FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_MISC46_8, (is_sd_pal50 || is_sd_pal60) ? 0x8D : 0x89);
+
+            // Setup YUV
+            uint8_t misc_47 = (is_sd_yuv) ? 0x0C : 0x00;
+            uint8_t misc_74 = P50_P60_NTSCM_NTSCJ(0x49, 0x51, 0x04, 0x04);
+            if (is_sd_yuv) {
+                misc_74 |= 0x20;
+            }
+            FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_MISC47_8, misc_47);
+            FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_MISC_74_8, misc_74);
+
+            // Output timing
+            FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_HSYNC_WID_8, P50_P60_NTSCM_NTSCJ(0x7C, 0x7C, 0x7C, 0x7C));
+            FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_BURST_WID_8, P50_P60_NTSCM_NTSCJ(0x3C, 0x40, 0x40, 0x40));
+            FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_BPORCH_8, P50_P60_NTSCM_NTSCJ(0x9A, 0x80, 0x80, 0x80));
+            FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_CB_BURST_8, P50_P60_NTSCM_NTSCJ(0x2F, 0x2F, 0x3E, 0x3E));
+            FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_CR_BURST_8, P50_P60_NTSCM_NTSCJ(0x21, 0x21, 0x00, 0x00));
+            FOCUS_OUTPUT_WORD(FOCUS_SDTVO_BLACK_LVL_16, P50_P60_NTSCM_NTSCJ(0x003F, 0x003F, 0x0246, 0x013C));
+            FOCUS_OUTPUT_WORD(FOCUS_SDTVO_BLANK_LVL16, P50_P60_NTSCM_NTSCJ(0x033E, 0x033E, 0x003C, 0x003C));
+            FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_CB_GAIN_8, P50_P60_NTSCM_NTSCJ(0x9D, 0x9D, 0x91, 0x9D));
+            FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_CR_GAIN_8, P50_P60_NTSCM_NTSCJ(0x9D, 0x9D, 0x91, 0x9D));
+            FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_BR_WAY_8, P50_P60_NTSCM_NTSCJ(0x1A, 0x19, 0x19, 0x19));
+            FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_FR_PORCH_8, P50_P60_NTSCM_NTSCJ(0x1E, 0x24, 0x24, 0x24));
+            FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_1ST_LINE_8, P50_P60_NTSCM_NTSCJ(0x15, 0x11, 0x14, 0x14));
+            FOCUS_OUTPUT_WORD(FOCUS_SDTVO_VBI_BL_LVL_16, P50_P60_NTSCM_NTSCJ(0x033E, 0x033E, 0x003C, 0x003C));
+            FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_WSS_CONFIG_8, P50_P60_NTSCM_NTSCJ(0x57, 0x67, 0x67, 0x67));
+            FOCUS_OUTPUT_WORD(FOCUS_SDTVO_WSS_CLK_16, P50_P60_NTSCM_NTSCJ(0x072F, 0x0C21, 0x0C21, 0x0C21));
+            FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_WSS_LNF1_8, P50_P60_NTSCM_NTSCJ(0x16, 0x10, 0x13, 0x13));
+            FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_WSS_LNF0_8, P50_P60_NTSCM_NTSCJ(0x16, 0x10, 0x13, 0x13));
+            FOCUS_OUTPUT_WORD(FOCUS_SDTVO_CCC_16, P50_P60_NTSCM_NTSCJ(0x05D7, 0x0596, 0x0555, 0x0555));
+            FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_PR_SC_8, is_sd_yuv ? 0x93 : 0x00);
+            FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_PB_SC_8, is_sd_yuv ? 0x93 : 0x00);
+
+            FOCUS_OUTPUT_WORD(FOCUS_CTRL_VIDCNTRL0_16, (is_sd_yuv) ? 0x48C5 : 0x48c4);
+            FOCUS_OUTPUT_WORD(FOCUS_CTRL_9A_16, (is_sd_pal50) ? 0x8000 : 0x0000);
+        }
+
+        FOCUS_OUTPUT_WORD(FOCUS_CTRL_CR_16, is_sd_pal50 ? 0x2103 : 0x2003);
+        FOCUS_OUTPUT_WORD(FOCUS_CTRL_MISC_16, 0x0415);
+        FOCUS_OUTPUT_WORD(FOCUS_CTRL_CR_16, is_sd_pal50 ? 0x2100 : 0x2000);
+
+        // Weirdly, xbox only does this if EEPROM is set to NTSCJ? Surely we should do it for all NTSCJ formats
+        if ((mode_settings->dwStandard == VIDEO_REGION_NTSCJ) &&
+            (mode_coding == 0x0802020e || mode_coding == 0x0801010d)) {
+            FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_BLACK_LVL_16, 0x3C);
+        }
+
+        if (is_sd_scart) {
+            // FIXME, These actually first read the register then clear/set bits as required.
+            // Turns out on xbox they are always the same anyway
+            const uint8_t scart_enable[][2] = {{0x92, 0xC1}, {0x93, 0x08}, {0xA2, 0x4D}, {0xA3, 0x00}, {0xA4, 0x96},
+                                               {0xA5, 0x00}, {0xA6, 0x1D}, {0xA7, 0x00}, {0xA8, 0xA0}, {0xA9, 0x00},
+                                               {0xAA, 0xDB}, {0xAB, 0x00}, {0xAC, 0x7E}, {0xAD, 0x00}};
+            for (uint8_t i = 0; i < sizeof(scart_enable) / 2; i++) {
+                xbox_smbus_input_byte(current_encoder_address, scart_enable[i][0], (uint8_t *)&temp);
+                FOCUS_OUTPUT_BYTE(scart_enable[i][0], scart_enable[i][1]);
+            }
+        }
+
+        // Set wide screen signalling for sdtv
+        if (!is_ed) {
+            FOCUS_OUTPUT_BYTE(0x85, (is_sd_pal50) ? 0x08 : 0x00);
+            FOCUS_OUTPUT_BYTE(0x84, 0x00);
+            FOCUS_OUTPUT_BYTE(0x83, (is_sd_pal50) ? 0x00 : 0x18);
+            FOCUS_OUTPUT_BYTE(0x88, (is_sd_pal50) ? 0x08 : 0x00);
+            FOCUS_OUTPUT_BYTE(0x87, 0x00);
+            FOCUS_OUTPUT_BYTE(0x86, (is_sd_pal50) ? 0x00 : 0x18);
+        }
+    }
+
+    break;
+    default:
+        return;
     }
 }
