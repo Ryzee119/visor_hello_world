@@ -421,22 +421,21 @@ uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter)
             }
             break;
         case XBOX_VIDEO_OPTION_VIDEO_FLICKER_FILTER:
-            uint32_t flicker_level = *parameter; // FIXME C23 extension
             switch (current_encoder_address) {
                 case XBOX_SMBUS_ADDRESS_ENCODER_XCALIBUR:
                     break;
                 case XBOX_SMBUS_ADDRESS_ENCODER_CONEXANT:
                     break;
                 case XBOX_SMBUS_ADDRESS_ENCODER_FOCUS:
-                    if (flicker_level == 0) {
-                        flicker_level = 0;
-                    } else if (flicker_level <= 2) {
-                        flicker_level = 13;
+                    if (*parameter == 0) {
+                        *parameter = 0;
+                    } else if (*parameter <= 2) {
+                        *parameter = 13;
                     } else {
-                        flicker_level = 16;
+                        *parameter = 16;
                     }
-                    xbox_smbus_output_byte(current_encoder_address, FOCUS_SDTVI_FLK_16, (uint16_t)(flicker_level + 0xFF));
-                    xbox_smbus_output_byte(current_encoder_address, FOCUS_SDTVI_FLK_16, (uint16_t)(flicker_level + 0x00));
+                    xbox_smbus_output_byte(current_encoder_address, FOCUS_SDTVI_FLK_16, (uint16_t)(*parameter + 0xFF));
+                    xbox_smbus_output_byte(current_encoder_address, FOCUS_SDTVI_FLK_16, (uint16_t)(*parameter + 0x00));
 
                     break;
                 default:

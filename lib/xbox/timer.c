@@ -3,8 +3,6 @@
 // https://wiki.osdev.org/ACPI_Timer
 // On Xbox this is located at 0x8008
 
-uint32_t APIC_SPEED = NB_FSB_FREQ;
-
 uint32_t xbox_timer_query_performance_frequency(void)
 {
     return ACPI_TIMER_FREQ;

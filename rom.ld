@@ -38,7 +38,6 @@ SECTIONS {
         . = ALIGN(32);
         *(.text)
         *(.text.*)
-
         /* picolibc stuff */
         KEEP (*(.fini .fini.*))
         *(.got.plt)
@@ -58,20 +57,22 @@ SECTIONS {
         KEEP(*(SORT_BY_INIT_PRIORITY(.fini_array.*) SORT_BY_INIT_PRIORITY(.dtors.*)))
         KEEP(*(.fini_array .dtors))
         PROVIDE_HIDDEN(__fini_array_end = .);
+        . = ALIGN(4);
     } > RAM
 
     .data : {
-        . = ALIGN(32);
+
         *(.data)
         *(.data.*)
+        . = ALIGN(4);
     } > RAM
 
     .rodata : {
-        . = ALIGN(32);
         *(.rdata)
         *(.rdata.*)
         *(.rodata)
         *(.rodata.*)
+        . = ALIGN(4);
     } > RAM
 
     .bss (NOLOAD) : {

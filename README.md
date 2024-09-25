@@ -13,5 +13,5 @@ References:
 * https://github.com/mborgerson/xqemu-kernel
 * https://github.com/Ernegien/xdecode
 
-
-pip install objutils lz4 elftools
+sudo apt install build-essential cmake python3 python3-pip clang nasm
+pip install objutils lz4 pyelftools

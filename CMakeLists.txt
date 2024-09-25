@@ -1,57 +1,21 @@
-set(CMAKE_SYSTEM_NAME Generic)
-set(CMAKE_SYSTEM_PROCESSOR i686)
-set(CMAKE_C_COMPILER clang)
-set(CMAKE_ASM_COMPILER gcc) # Ugh FreeRTOS asm needs gcc
-set(CMAKE_CXX_COMPILER clang++)
-set(CMAKE_OBJCOPY objcopy)
-
+set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_LIST_DIR}/toolchain-xbox.cmake)
 cmake_minimum_required (VERSION 3.13)
 cmake_policy(SET CMP0079 NEW)
-project(visor C ASM ASM_NASM)
+cmake_policy(SET CMP0077 NEW)
 
-find_package (Python COMPONENTS Interpreter)
-message(STATUS "Python found: ${Python_Interpreter_FOUND}")
-message(STATUS "PYTHON_EXECUTABLE: ${Python_EXECUTABLE}")
+set (PROJECT_NAME "visor")
+set (OUTPUT_NAME "rom.elf")
 
-if(NOT CMAKE_BUILD_TYPE)
-    message(STATUS "No build type selected, default to Release")
-    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
-endif()
-
-set(OUTPUT_NAME "rom.elf")
+project(${PROJECT_NAME} C ASM ASM_NASM)
 add_executable(${OUTPUT_NAME})
 
-# Set the compiler flags for clang
-set(CMAKE_C_FLAGS "\
-    -Wall -target i386-elf -g \
-    -m32 -march=pentium -mfpmath=sse -msse -mmmx \
-    -fno-stack-protector -ffreestanding -fno-pic -fno-common \
-    -nostdlib -fno-builtin -nodefaultlibs -static -Wno-c23-extensions \
-    -Wno-ignored-optimization-argument -Wno-implicit-function-declaration \
-")
+find_package (Python COMPONENTS Interpreter)
 
-set(CMAKE_ASM_FLAGS "\
-    -m32 -march=pentium \
-")
-
-# NASM elf32 i386. Note we set CMAKE_ASM_NASM_COMPILE_OBJECT otherwise it doesnt compile elf32 properly. FIXME?
-set(CMAKE_ASM_NASM_COMPILER nasm)
-set(CMAKE_ASM_NASM_OBJECT_FORMAT elf32)
-set(CMAKE_ASM_NASM_FLAGS "-I${CMAKE_SOURCE_DIR}")
-set(CMAKE_ASM_NASM_COMPILE_OBJECT "<CMAKE_ASM_NASM_COMPILER> <DEFINES> \
-    <INCLUDES> <FLAGS> -f ${CMAKE_ASM_NASM_OBJECT_FORMAT} -o <OBJECT> <SOURCE>")
-
-# Set the linker flags
-set_target_properties(${OUTPUT_NAME} PROPERTIES
-    LINK_FLAGS "-Wl,--gc-sections -Wl,--build-id=none -target i386-elf"
-)
-
-# Use our linker script
-set(CMAKE_EXE_LINKER_FLAGS "-T${CMAKE_SOURCE_DIR}/rom.ld")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Os -ffunction-sections -fdata-sections -fomit-frame-pointer")
 
 # picolibc
-set(_FORMAT_DEFAULT_INTEGER ON)
-#set(_FORMAT_DEFAULT_DOUBLE ON)
+#set(_FORMAT_DEFAULT_INTEGER ON) #Smaller, no float support
+set(_FORMAT_DEFAULT_DOUBLE ON)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/picolibc)
 
 #arith64 - prevents having to link libgcc for a couple functions
@@ -81,17 +45,6 @@ add_library(fatfs_config INTERFACE)
 target_include_directories(fatfs_config SYSTEM INTERFACE ${CMAKE_CURRENT_LIST_DIR}/config_fatfs)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/fatfs fatfs)
 
-# LZ4 - called during early boot, so no libc functions. Make freestanding and use our own memcpy/memset/memmove
-set (LZ4_BUNDLED_MODE ON)
-set (LZ4_BUILD_CLI OFF)
-set (LZ4_FREESTANDING ON)
-set (LZ4_BUILD_LEGACY_LZ4C OFF)
-add_compile_definitions(LZ4_STATIC_LINKING_ONLY_DISABLE_MEMORY_ALLOCATION
-                        LZ4_memcpy=boot_memcpy
-                        LZ4_memset=boot_memset
-                        LZ4_memmove=boot_memmove)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/lz4/build/cmake lz4)
-
 # Build our xbox specific code
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/xbox xbox)
 
@@ -99,7 +52,7 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/xbox xbox)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/pc pc)
 
 # Link the libraries
-target_link_libraries(${OUTPUT_NAME} PRIVATE c arith64 freertos_kernel pc xbox tinyusb xinput_host fatfs lz4)
+target_link_libraries(${OUTPUT_NAME} PRIVATE c arith64 freertos_kernel pc xbox tinyusb xinput_host fatfs)
 
 # Create a binary from the elf
 add_custom_command(TARGET ${OUTPUT_NAME} POST_BUILD
