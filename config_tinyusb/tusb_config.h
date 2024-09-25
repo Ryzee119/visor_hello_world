@@ -16,8 +16,8 @@
 #define CFG_TUH_HUB 2
 #endif
 
-//Not including USB Hubs
-#ifndef CFG_TUH_DEVICE_MAX 
+// Not including USB Hubs
+#ifndef CFG_TUH_DEVICE_MAX
 #define CFG_TUH_DEVICE_MAX 8
 #endif
 

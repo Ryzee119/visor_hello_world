@@ -1,10 +1,8 @@
-#include <fatfs/ff.h>
 #include <FreeRTOS.h>
+#include <fatfs/ff.h>
+#include <stdlib.h>
 
-
-#include <stdlib.h> /* with POSIX API */
-
-void *ff_memalloc( UINT msize)
+void *ff_memalloc(UINT msize)
 {
     return pvPortMalloc((size_t)msize);
 }
@@ -14,8 +12,6 @@ void ff_memfree(void *mblock /* Pointer to the memory block to free (no effect i
 {
     vPortFree(mblock);
 }
-
-
 
 #if FF_FS_REENTRANT /* Mutal exclusion */
 /*------------------------------------------------------------------------*/
@@ -171,7 +167,7 @@ void ff_mutex_give(int vol /* Mutex ID: Volume mutex (0 to FF_VOLUMES - 1) or sy
     OSMutexPost(Mutex[vol]);
 
 #elif OS_TYPE == 3 /* FreeRTOS */
-    xSemaphoreGive(Mutex[vol]);
+    
 
 #elif OS_TYPE == 4 /* CMSIS-RTOS */
     osMutexRelease(Mutex[vol]);

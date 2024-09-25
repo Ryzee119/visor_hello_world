@@ -1,10 +1,5 @@
 BasedOnStyle: Microsoft
-ColumnLimit: 160
-IndentCaseLabels: true
-AlignTrailingComments: true
-AlignConsecutiveMacros: true
-InsertBraces: true
-SortIncludes: true
+ColumnLimit: 120
 
 BreakBeforeBraces: Custom
 BraceWrapping:

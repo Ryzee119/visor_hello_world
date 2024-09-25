@@ -24,16 +24,6 @@ void fileio_usb_init()
     memset(msc_device, 0, sizeof(msc_device));
 }
 
-static usb_msc_device_t *get_msc_device(uint8_t dev_addr)
-{
-    for (uint8_t i = 0; i < CFG_TUH_MSC; i++) {
-        if (msc_device[i].dev_addr == dev_addr) {
-            return &msc_device[i];
-        }
-    }
-    return NULL;
-}
-
 static bool msc_transfer_cb(uint8_t dev_addr, tuh_msc_complete_data_t const *cb_data)
 {
     int *finished = (int *)cb_data->user_arg;
@@ -82,7 +72,8 @@ void tuh_msc_mount_cb(uint8_t dev_addr)
             msc_device[i].dev_addr = dev_addr;
             msc_device[i].drive_number = i;
             msc_device[i].fatfs = NULL;
-            xTaskCreate(msc_mount_task, "msc_mount_task", configMINIMAL_STACK_SIZE, &msc_device[i], THREAD_PRIORITY_NORMAL, NULL);
+            xTaskCreate(msc_mount_task, "msc_mount_task", configMINIMAL_STACK_SIZE, &msc_device[i],
+                        THREAD_PRIORITY_NORMAL, NULL);
             return;
         }
     }
@@ -158,18 +149,18 @@ DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void *buff)
     const usb_msc_device_t *msc = &msc_device[pdrv];
     uint8_t dev_addr = msc->dev_addr;
     switch (cmd) {
-        case CTRL_SYNC:
-            return RES_OK;
-        case GET_SECTOR_COUNT:
-            *((DWORD *)buff) = (WORD)tuh_msc_get_block_count(dev_addr, 0);
-            return RES_OK;
-        case GET_SECTOR_SIZE:
-            *((WORD *)buff) = (WORD)tuh_msc_get_block_size(dev_addr, 0);
-            return RES_OK;
-        case GET_BLOCK_SIZE:
-            *((DWORD *)buff) = 1;
-            return RES_OK;
-        default:
-            return RES_PARERR;
+    case CTRL_SYNC:
+        return RES_OK;
+    case GET_SECTOR_COUNT:
+        *((DWORD *)buff) = (WORD)tuh_msc_get_block_count(dev_addr, 0);
+        return RES_OK;
+    case GET_SECTOR_SIZE:
+        *((WORD *)buff) = (WORD)tuh_msc_get_block_size(dev_addr, 0);
+        return RES_OK;
+    case GET_BLOCK_SIZE:
+        *((DWORD *)buff) = 1;
+        return RES_OK;
+    default:
+        return RES_PARERR;
     }
 }

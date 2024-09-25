@@ -71,7 +71,8 @@ static void freertos_entry(void *parameters)
     usb_init();
 
     cpuid_eax_01 cpuid_info;
-    cpu_read_cpuid(CPUID_VERSION_INFO, &cpuid_info.eax.flags, &cpuid_info.ebx.flags, &cpuid_info.ecx.flags, &cpuid_info.edx.flags);
+    cpu_read_cpuid(CPUID_VERSION_INFO, &cpuid_info.eax.flags, &cpuid_info.ebx.flags, &cpuid_info.ecx.flags,
+                   &cpuid_info.edx.flags);
 
     printf_r("[CPU] Family: %d\n", cpuid_info.eax.family_id);
     printf_r("[CPU] Model: %d\n", cpuid_info.eax.model);
@@ -103,7 +104,8 @@ int main(void)
     // which is good because we can setup the PIC timer with FreeRTOS context before the scheduler actually starts.
     static StaticTask_t freertos_entry_task;
     static StackType_t freertos_entry_stack[configMINIMAL_STACK_SIZE];
-    xTaskCreateStatic(freertos_entry, "FreeRTOS!", configMINIMAL_STACK_SIZE, NULL, THREAD_PRIORITY_NORMAL, freertos_entry_stack, &freertos_entry_task);
+    xTaskCreateStatic(freertos_entry, "FreeRTOS!", configMINIMAL_STACK_SIZE, NULL, THREAD_PRIORITY_NORMAL,
+                      freertos_entry_stack, &freertos_entry_task);
     vTaskStartScheduler();
 
     // Should never get here
@@ -117,6 +119,8 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
     printf("Stack overflow in task %s\n", pcTaskName);
 }
 
-void _exit(int code) {
-    while (1);
+void _exit(int code)
+{
+    while (1)
+        ;
 }

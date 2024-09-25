@@ -1,16 +1,14 @@
 #define DOOM_IMPLEMENTATION
 #include "main.h"
 
-//Wtf doom
+// Wtf doom
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #pragma GCC diagnostic ignored "-Wsometimes-uninitialized"
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
-#pragma GCC diagnostic ignored "-Wdeprecated-non-prototype"
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #pragma GCC diagnostic ignored "-Wparentheses"
 #include <PureDOOM/PureDOOM.h>
-#pragma GCC diagnostic pop
 #pragma GCC diagnostic pop
 #pragma GCC diagnostic pop
 #pragma GCC diagnostic pop
@@ -286,7 +284,8 @@ int doom_entry(const char *wad_path)
         for (int pixel = 0; pixel < SCREENWIDTH * SCREENHEIGHT; pixel++) {
             uint32_t index = indexed_framebuffer[pixel] * 3;
 
-            uint32_t argb = 0xff000000 | (screen_palette[index] << 16) | (screen_palette[index + 1] << 8) | screen_palette[index + 2];
+            uint32_t argb = 0xff000000 | (screen_palette[index] << 16) | (screen_palette[index + 1] << 8) |
+                            screen_palette[index + 2];
 
             *screen_buffer_ptr++ = argb;
             *screen_buffer_ptr++ = argb;

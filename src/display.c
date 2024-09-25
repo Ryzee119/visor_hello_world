@@ -42,7 +42,12 @@ void display_write_char(const char c)
         } else if (c == '\r') {
             cursor_x = MARGIN;
         } else {
-            const uint8_t *glyph = unscii_16 + (c * ((UNSCII_FONT_WIDTH + 7) / 8) * UNSCII_FONT_HEIGHT);
+            // To save space we purged the first 32 'non-ascii' characters from the font, so ignore anything below 0x20
+            // then offset c by -0x20 to get the correct index into the font
+            if (c > 0x7F || c < 0x20) {
+                return;
+            }
+            const uint8_t *glyph = unscii_16 + ((c - 0x20) * ((UNSCII_FONT_WIDTH + 7) / 8) * UNSCII_FONT_HEIGHT);
             for (int h = 0; h < UNSCII_FONT_HEIGHT; h++) {
                 uint8_t mask = 0x80;
                 for (int w = 0; w < UNSCII_FONT_WIDTH; w++) {

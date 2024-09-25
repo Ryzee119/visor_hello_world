@@ -1,10 +1,11 @@
-set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_LIST_DIR}/toolchain-xbox.cmake)
+set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_LIST_DIR}/toolchain-xboxbios.cmake)
 cmake_minimum_required (VERSION 3.13)
 cmake_policy(SET CMP0079 NEW)
 cmake_policy(SET CMP0077 NEW)
 
-set (PROJECT_NAME "visor")
-set (OUTPUT_NAME "rom.elf")
+set(PROJECT_NAME "visor")
+set(OUTPUT_NAME "rom.elf")
+set(CMAKE_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/src)
 
 project(${PROJECT_NAME} C ASM ASM_NASM)
 add_executable(${OUTPUT_NAME})
@@ -36,14 +37,14 @@ target_compile_definitions(tinyusb_config INTERFACE TUH_OPT_RHPORT=0 CFG_TUSB_MC
 target_include_directories(tinyusb_config SYSTEM INTERFACE ${CMAKE_CURRENT_LIST_DIR}/config_tinyusb)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/tinyusb/src tinyusb_host)
 target_sources(tinyusb PRIVATE ${CMAKE_CURRENT_LIST_DIR}/lib/tinyusb/src/portable/ohci/ohci.c)
-target_compile_definitions(tinyusb PRIVATE portARMV8M_MINOR_VERSION=0) # Why FreeRTOS needs this, bug I guess?
 target_link_libraries(tinyusb PRIVATE c freertos_kernel)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/tusb_xinput xinput_host)
 
 # FATFS
-add_library(fatfs_config INTERFACE)
-target_include_directories(fatfs_config SYSTEM INTERFACE ${CMAKE_CURRENT_LIST_DIR}/config_fatfs)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/fatfs fatfs)
+set(FATFS_DIR ${CMAKE_CURRENT_LIST_DIR}/lib/fatfs)
+add_library(fatfs INTERFACE)
+target_include_directories(fatfs PRIVATE INTERFACE ${CMAKE_CURRENT_LIST_DIR}/config_fatfs)
+target_sources(fatfs INTERFACE ${FATFS_DIR}/ff.c ${FATFS_DIR}/ffunicode.c ${CMAKE_CURRENT_LIST_DIR}/config_fatfs/ffsystem.c)
 
 # Build our xbox specific code
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/xbox xbox)
@@ -84,19 +85,14 @@ add_custom_command(TARGET ${OUTPUT_NAME} POST_BUILD
 # Include directories
 target_include_directories(${OUTPUT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/lib
+    ${CMAKE_CURRENT_LIST_DIR}/lib
 )
+
+file(GLOB C_SOURCES ${CMAKE_SOURCE_DIR}/*.c)
 
 # Source files
 target_sources(${OUTPUT_NAME} PRIVATE
     config_freertos/irq.S
     config_freertos/irq.c
-    config_fatfs/ffsystem.c
-    main.c
-    display.c
-    usb.c
-    debug.c
-    interrupts.c
-    fileio_usb.c
-    doom.c
+    ${C_SOURCES}
 )
