@@ -18,7 +18,7 @@ SemaphoreHandle_t doom_mutex;
 static void doom_task(void *parameters)
 {
     while (1) {
-        printf_r("[DOOM] Wait1ing for USB device...\n");
+        printf_r("[DOOM] Waiting for USB device...\n");
         xSemaphoreTake(doom_mutex, portMAX_DELAY);
 
         {

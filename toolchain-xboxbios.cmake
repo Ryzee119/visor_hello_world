@@ -10,9 +10,9 @@ set(CMAKE_OBJCOPY objcopy)
 set(CMAKE_C_STANDARD_INCLUDE_DIRECTORIES ${PROJECT_BINARY_DIR}/lib/picolibc/picolibc/include)
 
 set(CMAKE_C_FLAGS_INIT "\
-    -Wall -target i386-elf -mfpmath=sse -msse -mmmx \
-    -m32 -march=pentium -ffreestanding \
-    -fno-stack-protector -nostdlib -static \
+    -target i386-elf -m32 -march=pentium \
+    -mfpmath=sse -msse -mmmx \
+    -ffreestanding -nostdlib -static -fno-stack-protector \
 " CACHE STRING "" FORCE)
 
 set(CMAKE_CXX_FLAGS_INIT ${CMAKE_C_FLAGS_INIT})

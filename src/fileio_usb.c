@@ -51,6 +51,8 @@ static void msc_mount_task(void *parameters)
         return;
     }
 
+    printf_r("[USBMSC] Mounting device at address %d\r\n", msc->dev_addr);
+
     FRESULT res = f_mount(msc->fatfs, (const TCHAR *)msc->drive_path, 1);
     if (res != FR_OK) {
         printf_r("[USBMSC] f_mount failed with error %d\r\n", res);

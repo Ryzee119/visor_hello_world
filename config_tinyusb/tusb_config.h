@@ -26,11 +26,11 @@
 #endif
 
 #ifndef CFG_TUH_XINPUT
-#define CFG_TUH_XINPUT 1
+#define CFG_TUH_XINPUT 2
 #endif
 
 #ifndef CFG_TUH_MSC
-#define CFG_TUH_MSC 1
+#define CFG_TUH_MSC 2
 #endif
 #define CFG_TUH_MSC_MAXLUN 1
 

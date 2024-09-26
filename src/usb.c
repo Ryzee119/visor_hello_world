@@ -3,6 +3,7 @@
 void tusb_host_task0(void *parameters)
 {
     (void)parameters;
+    vTaskDelay(pdMS_TO_TICKS(1000));
     tusb_init();
     while (1) {
         tuh_task();
@@ -35,7 +36,7 @@ usbh_class_driver_t const *usbh_app_driver_get_cb(uint8_t *driver_count)
     return &usbh_xinput_driver;
 }
 
-void dooom_new_input(uint16_t buttons, int16_t lx, int16_t ly);
+void dooom_new_input(uint16_t buttons, int16_t lx, int16_t ly, int16_t rx, int16_t ry, uint8_t lt, uint8_t rt);
 void tuh_xinput_report_received_cb(uint8_t dev_addr, uint8_t instance, xinputh_interface_t const *xid_itf, uint16_t len)
 {
     const xinput_gamepad_t *p = &xid_itf->pad;
@@ -43,7 +44,8 @@ void tuh_xinput_report_received_cb(uint8_t dev_addr, uint8_t instance, xinputh_i
     if (xid_itf->last_xfer_result == XFER_RESULT_SUCCESS) {
 
         if (xid_itf->connected && xid_itf->new_pad_data) {
-            dooom_new_input(p->wButtons, p->sThumbLX, p->sThumbLY);
+            dooom_new_input(p->wButtons, p->sThumbLX, p->sThumbLY, p->sThumbRX, p->sThumbRY, p->bLeftTrigger,
+                            p->bRightTrigger);
         }
     }
     tuh_xinput_receive_report(dev_addr, instance);
@@ -69,4 +71,13 @@ void tuh_xinput_mount_cb(uint8_t dev_addr, uint8_t instance, const xinputh_inter
 void tuh_xinput_umount_cb(uint8_t dev_addr, uint8_t instance)
 {
     TU_LOG1("[INPUT] XINPUT UNMOUNTED %02x %d\n", dev_addr, instance);
+}
+
+
+void tuh_mount_cb (uint8_t daddr) {
+    TU_LOG1("[USB] Device mounted %d\n", daddr);
+}
+
+void tuh_umount_cb(uint8_t daddr) {
+    TU_LOG1("[USB] Device unmounted %d\n", daddr);
 }

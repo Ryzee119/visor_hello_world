@@ -12,7 +12,7 @@ add_executable(${OUTPUT_NAME})
 
 find_package (Python COMPONENTS Interpreter)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Os -ffunction-sections -fdata-sections -fomit-frame-pointer")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -ffunction-sections -fdata-sections -fomit-frame-pointer")
 
 # picolibc
 #set(_FORMAT_DEFAULT_INTEGER ON) #Smaller, no float support
@@ -43,6 +43,7 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/tusb_xinput xinput_host)
 # FATFS
 set(FATFS_DIR ${CMAKE_CURRENT_LIST_DIR}/lib/fatfs)
 add_library(fatfs INTERFACE)
+
 target_include_directories(fatfs PRIVATE INTERFACE ${CMAKE_CURRENT_LIST_DIR}/config_fatfs)
 target_sources(fatfs INTERFACE ${FATFS_DIR}/ff.c ${FATFS_DIR}/ffunicode.c ${CMAKE_CURRENT_LIST_DIR}/config_fatfs/ffsystem.c)
 

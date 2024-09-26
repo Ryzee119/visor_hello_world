@@ -26,16 +26,17 @@ SECTIONS {
         KEEP(*(.visor_entry))
     } > ROM
 
-    .boot_code (RAM_ENTRY_OFFSET) : {
+    .boot_code (RAM_ENTRY_OFFSET) : ALIGN(16) {
         KEEP(*(.boot_code));
+        . = ALIGN(4);
     } > RAM AT> ROM
 
-    .compressed : {
+    .compressed : ALIGN(16) {
         KEEP(*(.compressed))
     } > ROM
 
-    .text : {
-        . = ALIGN(32);
+    .text : ALIGN(16) {
+        . = ALIGN(4);
         *(.text)
         *(.text.*)
         /* picolibc stuff */
@@ -60,14 +61,13 @@ SECTIONS {
         . = ALIGN(4);
     } > RAM
 
-    .data : {
-
+    .data : ALIGN(16) {
         *(.data)
         *(.data.*)
         . = ALIGN(4);
     } > RAM
 
-    .rodata : {
+    .rodata : ALIGN(16) {
         *(.rdata)
         *(.rdata.*)
         *(.rodata)
@@ -75,22 +75,22 @@ SECTIONS {
         . = ALIGN(4);
     } > RAM
 
-    .bss (NOLOAD) : {
+    .bss (NOLOAD) : ALIGN(16) {
         __bss_start = .;
         *(.bss)
         *(.bss.*)
         __bss_end = .;
+        . = ALIGN(4);
     }
 
-    .stack (NOLOAD) : {
+    .stack (NOLOAD) : ALIGN(16) {
         __stack_end = .;
         . += STACK_SIZE;
         . = ALIGN(16);
         __stack = .;
     }
 
-    .heap (NOLOAD) : {
-        . = ALIGN(16);
+    .heap (NOLOAD) : ALIGN(16) {
         __heap_start = .;
         . += LENGTH(RAM) - (__heap_start - ORIGIN(RAM));
         __heap_end = .;

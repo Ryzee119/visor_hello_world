@@ -159,40 +159,87 @@ void doom_memset(void *ptr, int value, int num)
     memset(ptr, value, num);
 }
 
-void dooom_new_input(uint16_t buttons, int16_t lx, int16_t ly)
+static uint8_t doom_initd = 0;
+void dooom_new_input(uint16_t buttons, int16_t lx, int16_t ly, int16_t rx, int16_t ry, uint8_t lt, uint8_t rt)
 {
     static uint16_t old_buttons = 0;
-    uint16_t buttons_changed = buttons ^ old_buttons;
+    static uint8_t old_lt = 0;
+    static uint8_t old_rt = 0;
+    static int16_t old_ly;
+    static int16_t old_ry;
+    static int16_t old_lx;
+    static int16_t old_rx;
+    static uint8_t current_weapon_index = 0xFF;
 
-    if (buttons_changed) {
-        // printf_r("buttons: %04x, lx: %d, ly: %d\n", buttons, lx, ly);
-    } else {
+    if (doom_initd == 0) {
         return;
     }
 
+    // Digitize
+    lt = (lt > 0x20) ? 1 : 0;
+    rt = (rt > 0x20) ? 1 : 0;
+    ly = (ly > 0x1000) ? 1 : (ly < -0x1000) ? -1 : 0;
+    lx = (lx > 0x1000) ? 1 : (lx < -0x1000) ? -1 : 0;
+
+    const uint16_t buttons_changed = buttons ^ old_buttons;
+    const uint8_t lt_changed = old_lt != lt;
+    const uint8_t rt_changed = old_rt != rt;
+    const int16_t ly_changed = old_ly != ly;
+    const int16_t lx_changed = old_lx != lx;
+
     vPortEnterCritical();
 
-    if (buttons_changed & XINPUT_GAMEPAD_A) {
-        if (buttons & XINPUT_GAMEPAD_A) {
+    //deadzone for rx and ry
+    if (rx > -0x2000 && rx < 0x2000) {
+        rx = 0;
+    }
+    if (ry > -0x2000 && ry < 0x2000) {
+        ry = 0;
+    }
+
+    doom_mouse_move(rx / 256, ry / 256);
+
+    if (!buttons_changed && !lt_changed && !rt_changed && !ly_changed && !lx_changed) {
+        vPortExitCritical();
+        return;
+    }
+
+    // Shoot (Right trigger)
+    if (rt_changed) {
+        if (rt) {
             doom_key_down(DOOM_KEY_CTRL);
         } else {
             doom_key_up(DOOM_KEY_CTRL);
         }
     }
-    if (buttons_changed & XINPUT_GAMEPAD_X) {
-        if (buttons & XINPUT_GAMEPAD_X) {
-            doom_key_down(DOOM_KEY_SPACE);
-        } else {
-            doom_key_up(DOOM_KEY_SPACE);
+
+    // Move Forward/Backward (Left stick)
+    if (ly_changed) {
+        if (ly == 1) {
+            doom_key_down(DOOM_KEY_UP_ARROW);
+        } else if (ly == 0 && old_ly == 1) {
+            doom_key_up(DOOM_KEY_UP_ARROW);
+        } else if (ly == -1) {
+            doom_key_down(DOOM_KEY_DOWN_ARROW);
+        } else if (ly == 0 && old_ly == -1) {
+            doom_key_up(DOOM_KEY_DOWN_ARROW);
         }
     }
-    if (buttons_changed & XINPUT_GAMEPAD_B) {
-        if (buttons & XINPUT_GAMEPAD_B) {
-            doom_key_down(DOOM_KEY_SHIFT);
-        } else {
-            doom_key_up(DOOM_KEY_SHIFT);
+
+    // Strafe Left/Right (Left stick)
+    if (lx_changed) {
+        if (lx == 1) {
+            doom_key_down(DOOM_KEY_PERIOD);
+        } else if (lx == 0 && old_lx == 1) {
+            doom_key_up(DOOM_KEY_PERIOD);
+        } else if (lx == -1) {
+            doom_key_down(DOOM_KEY_COMMA);
+        } else if (lx == 0 && old_lx == -1) {
+            doom_key_up(DOOM_KEY_COMMA);
         }
     }
+
+    // Vanilla Arrow Key Mapping to D-Pad
     if (buttons_changed & XINPUT_GAMEPAD_DPAD_UP) {
         if (buttons & XINPUT_GAMEPAD_DPAD_UP) {
             doom_key_down(DOOM_KEY_UP_ARROW);
@@ -221,16 +268,118 @@ void dooom_new_input(uint16_t buttons, int16_t lx, int16_t ly)
             doom_key_up(DOOM_KEY_RIGHT_ARROW);
         }
     }
-    if (buttons_changed & XINPUT_GAMEPAD_START) {
-        if (buttons & XINPUT_GAMEPAD_START) {
+
+    // Run (Press left stick or left trigger)
+    if (buttons_changed & XINPUT_GAMEPAD_LEFT_THUMB) {
+        if (buttons & XINPUT_GAMEPAD_LEFT_SHOULDER) {
+            doom_key_down(DOOM_KEY_SHIFT);
+        } else {
+            doom_key_up(DOOM_KEY_SHIFT);
+        }
+    }
+    if (lt_changed) {
+        if (lt) {
+            doom_key_down(DOOM_KEY_SHIFT);
+        } else {
+            doom_key_up(DOOM_KEY_SHIFT);
+        }
+    }
+
+    // Enter/Accept (A)
+    if (buttons_changed & XINPUT_GAMEPAD_A) {
+        if (buttons & XINPUT_GAMEPAD_A) {
             doom_key_down(DOOM_KEY_ENTER);
         } else {
             doom_key_up(DOOM_KEY_ENTER);
         }
     }
 
-    vPortExitCritical();
+    // Show/Hide Menu (Start)
+    if (buttons_changed & XINPUT_GAMEPAD_START) {
+        if (buttons & XINPUT_GAMEPAD_START) {
+            doom_key_down(DOOM_KEY_ESCAPE);
+        } else {
+            doom_key_up(DOOM_KEY_ESCAPE);
+        }
+    }
+
+    // Use/Open (X or B)
+    if (buttons_changed & XINPUT_GAMEPAD_X) {
+        if (buttons & XINPUT_GAMEPAD_X) {
+            doom_key_down(DOOM_KEY_SPACE);
+        } else {
+            doom_key_up(DOOM_KEY_SPACE);
+        }
+    }
+
+    // Back/Cancel (B)
+    if (buttons_changed & XINPUT_GAMEPAD_B) {
+        if (buttons & XINPUT_GAMEPAD_B) {
+            doom_key_down(DOOM_KEY_BACKSPACE);
+        } else {
+            doom_key_up(DOOM_KEY_BACKSPACE);
+        }
+    }
+
+    // Map View (back)
+    if (buttons_changed & XINPUT_GAMEPAD_BACK) {
+        if (buttons & XINPUT_GAMEPAD_BACK) {
+            doom_key_down(DOOM_KEY_TAB);
+        } else {
+            doom_key_up(DOOM_KEY_TAB);
+        }
+    }
+
+    // Change Weapon (Y)
+    // Game doesnt support weapon cycle, so we do it here
+    if (buttons_changed & XINPUT_GAMEPAD_Y) {
+        extern player_t players[MAXPLAYERS];
+        static int key = DOOM_KEY_1;
+
+        if (buttons & XINPUT_GAMEPAD_Y) {
+            if (current_weapon_index == 0xFF) {
+                current_weapon_index = players[0].readyweapon;
+            }
+
+            current_weapon_index = (current_weapon_index + 1) % NUMWEAPONS;
+            for (int i = 0; i < NUMWEAPONS; i++) {
+                uint8_t index = (current_weapon_index + i) % NUMWEAPONS;
+                if (players[0].weaponowned[index]) {
+                    current_weapon_index = index;
+                    key = DOOM_KEY_1 + index;
+                    break;
+                }
+            }
+            doom_key_down(key);
+        } else {
+            doom_key_up(key);
+        }
+    }
+
+    if (buttons_changed & XINPUT_GAMEPAD_LEFT_SHOULDER) {
+        if (buttons & XINPUT_GAMEPAD_LEFT_SHOULDER) {
+            doom_key_down(DOOM_KEY_MINUS);
+        } else {
+            doom_key_up(DOOM_KEY_MINUS);
+        }
+    }
+
+    if (buttons_changed & XINPUT_GAMEPAD_RIGHT_SHOULDER) {
+        if (buttons & XINPUT_GAMEPAD_RIGHT_SHOULDER) {
+            doom_key_down(DOOM_KEY_EQUALS);
+        } else {
+            doom_key_up(DOOM_KEY_EQUALS);
+        }
+    }
+
     old_buttons = buttons;
+    old_lt = lt;
+    old_rt = rt;
+    old_ly = ly;
+    old_ry = ry;
+    old_lx = lx;
+    old_rx = rx;
+    vPortExitCritical();
 }
 
 int doom_entry(const char *wad_path)
@@ -249,10 +398,17 @@ int doom_entry(const char *wad_path)
         }
         cached_wad_size = f_size(&wad_file);
         cached_wad_data = pvPortMalloc(cached_wad_size);
-        if (f_read(&wad_file, cached_wad_data, cached_wad_size, NULL) != FR_OK) {
-            printf_r("Failed to read WAD file\n");
-            return -1;
+        uint32_t chunk_size = cached_wad_size / 16;
+        uint32_t i = 0;
+        while (i < cached_wad_size) {
+            if (f_read(&wad_file, &cached_wad_data[i], chunk_size, NULL) != FR_OK) {
+                printf_r("Failed to read WAD file\n");
+                return -1;
+            }
+            printf_r(".");
+            i += (cached_wad_size - i) < chunk_size ? (cached_wad_size - i) : chunk_size;
         }
+        printf_r("\n");
         f_close(&wad_file);
     }
     printf_r("WAD file read, size: %d\n", cached_wad_size);
@@ -267,6 +423,7 @@ int doom_entry(const char *wad_path)
 
     printf_r("[DOOM] Initializing...\n");
     doom_init(argc, args, 0);
+    doom_initd = 1;
 
     uint32_t *final_screen_buffer = pvPortMalloc(640 * 480 * 4);
     final_screen_buffer = (uint32_t *)(0xF0000000 | (intptr_t)final_screen_buffer);
@@ -275,7 +432,6 @@ int doom_entry(const char *wad_path)
 
         // The doom framebuffer is palette indexed at 320x200.
         // We scale by 2 so it is 640x400 and apply the palette to convert to ARGB8888.
-        // FIXME overscan
         extern unsigned char screen_palette[256 * 3];
         uint8_t *indexed_framebuffer = (uint8_t *)doom_get_framebuffer(1);
         uint32_t *screen_buffer_ptr = final_screen_buffer;
