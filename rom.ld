@@ -36,9 +36,9 @@ SECTIONS {
     } > ROM
 
     .text : ALIGN(16) {
-        . = ALIGN(4);
         *(.text)
         *(.text.*)
+
         /* picolibc stuff */
         KEEP (*(.fini .fini.*))
         *(.got.plt)

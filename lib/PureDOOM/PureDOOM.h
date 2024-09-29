@@ -42,7 +42,7 @@
 // Hide menu options. If for say your platform doesn't support mouse or
 // MIDI playback, you can hide these settings from the menu.
 #define DOOM_FLAG_HIDE_MOUSE_OPTIONS 1 // Remove mouse options from menu
-#define DOOM_FLAG_HIDE_SOUND_OPTIONS 2 //�Remove sound options from menu
+#define DOOM_FLAG_HIDE_SOUND_OPTIONS 2 // Remove sound options from menu
 #define DOOM_FLAG_HIDE_MUSIC_OPTIONS 4 // Remove music options from menu
 
 // Darken background when menu is open, making it more readable. This
@@ -1938,12 +1938,7 @@ byte* I_AllocLow(int length);
 
 void I_Tactile(int on, int off, int total);
 
-#define DOOM_DEBUG
-#ifdef DOOM_DEBUG
 void I_Error(char* error);
-#else
-#define I_Error(...)
-#endif
 
 
 #endif
@@ -7184,7 +7179,6 @@ char* doom_getenv_impl(const char* var)
 char* doom_getenv_impl(const char* var) { return 0; }
 #endif
 
-
 #if (0)
 void doom_memset(void* ptr, int value, int num)
 {
@@ -7209,7 +7203,6 @@ void* doom_memcpy(void* destination, const void* source, int num)
     return destination;
 }
 #endif
-
 
 int doom_strlen(const char* str)
 {
@@ -10750,6 +10743,7 @@ void GetPackets(void)
 //
 void NetUpdate(void)
 {
+    return;
     int nowtime;
     int newtics;
     int i, j;
@@ -16387,7 +16381,6 @@ byte* I_AllocLow(int length)
 //
 // I_Error
 //
-#ifdef DOOM_DEBUG
 void I_Error(char* error)
 {
     // Message first.
@@ -16403,8 +16396,6 @@ void I_Error(char* error)
 
     doom_exit(-1);
 }
-#endif
-
 #define POINTER_WARP_COUNTDOWN 1
 
 
@@ -43406,7 +43397,6 @@ SlopeDiv
 
 
 
-
 #if (0)
 int finetangent[4096] =
 {
@@ -45471,7 +45461,6 @@ angle_t tantoangle[2049] =
     535533216,535700704,535868128,536035456,536202720,536369888,536536992,536704000,
     536870912
 };
-
 #endif
 byte* screens[5];
 

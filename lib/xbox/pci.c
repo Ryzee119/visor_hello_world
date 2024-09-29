@@ -147,7 +147,7 @@ void xbox_pci_init(void)
 
     //?
     xbox_smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x1b, 0x04); // unknown
-    xbox_smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x0b, 0x01); // Audio Mute
+    //xbox_smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x0b, 0x01); // Audio Mute
     xbox_smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x19, 0x01); // no reset on eject
     xbox_smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x1a, 0x01); // unknown, done immediately after reading out eeprom data
     xbox_smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x0b, 0x00); // Allow audio

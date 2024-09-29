@@ -19,6 +19,7 @@
 #include <pc/pic8259.h>
 #include <pc/pit8254.h>
 
+#include "audio.h"
 #include "eeprom.h"
 #include "encoder.h"
 #include "led.h"

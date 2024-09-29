@@ -3,14 +3,14 @@ cmake_minimum_required (VERSION 3.13)
 cmake_policy(SET CMP0079 NEW)
 cmake_policy(SET CMP0077 NEW)
 
+find_package (Python COMPONENTS Interpreter)
+
 set(PROJECT_NAME "visor")
 set(OUTPUT_NAME "rom.elf")
 set(CMAKE_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/src)
 
 project(${PROJECT_NAME} C ASM ASM_NASM)
 add_executable(${OUTPUT_NAME})
-
-find_package (Python COMPONENTS Interpreter)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -ffunction-sections -fdata-sections -fomit-frame-pointer")
 
@@ -43,7 +43,6 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/tusb_xinput xinput_host)
 # FATFS
 set(FATFS_DIR ${CMAKE_CURRENT_LIST_DIR}/lib/fatfs)
 add_library(fatfs INTERFACE)
-
 target_include_directories(fatfs PRIVATE INTERFACE ${CMAKE_CURRENT_LIST_DIR}/config_fatfs)
 target_sources(fatfs INTERFACE ${FATFS_DIR}/ff.c ${FATFS_DIR}/ffunicode.c ${CMAKE_CURRENT_LIST_DIR}/config_fatfs/ffsystem.c)
 
