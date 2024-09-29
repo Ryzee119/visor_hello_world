@@ -29,7 +29,7 @@ def print_memory_usage(elf_path):
         print(f"Stack Memory: {round(stack_size)} bytes")
 
         memory_usage_kb = memory_usage/1024
-        memory_percent = memory_usage_kb/256
+        memory_percent = memory_usage_kb/256           
         print(f"ROM: [{'='*round(memory_percent*16)}{'.'*(16-round(memory_percent*16))}] {round(memory_percent*100, 1)}% (used {round(memory_usage_kb, 3)} kB of 256 kB)")
 
     return memory_usage

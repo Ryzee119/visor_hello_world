@@ -22,12 +22,12 @@ void usb_init()
 
 void hcd_int_enable(uint8_t rhport)
 {
-    pic8259_irq_enable(XBOX_PIC1_DATA_PORT, PCI_USB0_IRQ);
+    pic8259_irq_enable(XBOX_PIC1_DATA_PORT, XBOX_PIC_USB0_IRQ);
 }
 
 void hcd_int_disable(uint8_t rhport)
 {
-    pic8259_irq_disable(XBOX_PIC1_DATA_PORT, PCI_USB0_IRQ);
+    pic8259_irq_disable(XBOX_PIC1_DATA_PORT, XBOX_PIC_USB0_IRQ);
 }
 
 usbh_class_driver_t const *usbh_app_driver_get_cb(uint8_t *driver_count)

@@ -22,12 +22,11 @@ void interrupts_init()
     idt_install_interrupt(15, freertos_exception15, IDT_PRESENT | IDT_TYPE_INT_GATE);
     idt_install_interrupt(16, freertos_exception16, IDT_PRESENT | IDT_TYPE_INT_GATE);
 
-    #define PIC_BASE(pic_irq) (pic_irq < 8 ? XBOX_PIC1_BASE_VECTOR_ADDRESS : XBOX_PIC2_BASE_VECTOR_ADDRESS)
-    xPortInstallInterruptHandler(freertos_usb0_interrupt, PIC_BASE(PCI_USB0_IRQ) + PCI_USB0_IRQ);
-    xPortInstallInterruptHandler(freertos_gpu_interrupt, PIC_BASE(PCI_GPU_IRQ) + PCI_GPU_IRQ);
-    xPortInstallInterruptHandler(freertos_nic_interrupt, PIC_BASE(PCI_NIC_IRQ) + PCI_NIC_IRQ);
-    xPortInstallInterruptHandler(freertos_apu_interrupt, PIC_BASE(PCI_APU_IRQ) + PCI_APU_IRQ);
-    xPortInstallInterruptHandler(freertos_aci_interrupt, PIC_BASE(PCI_ACI_IRQ) + PCI_ACI_IRQ);
-    xPortInstallInterruptHandler(freertos_usb1_interrupt, PIC_BASE(PCI_USB1_IRQ) + PCI_USB1_IRQ);
-    xPortInstallInterruptHandler(freertos_ide_interrupt, PIC_BASE(PCI_IDE_IRQ) + PCI_IDE_IRQ);
+    xPortInstallInterruptHandler(freertos_usb0_interrupt, XBOX_PIC_BASE(XBOX_PIC_USB0_IRQ) + XBOX_PIC_USB0_IRQ);
+    xPortInstallInterruptHandler(freertos_gpu_interrupt, XBOX_PIC_BASE(XBOX_PIC_GPU_IRQ) + XBOX_PIC_GPU_IRQ);
+    xPortInstallInterruptHandler(freertos_nic_interrupt, XBOX_PIC_BASE(XBOX_PIC_NIC_IRQ) + XBOX_PIC_NIC_IRQ);
+    xPortInstallInterruptHandler(freertos_apu_interrupt, XBOX_PIC_BASE(XBOX_PIC_APU_IRQ) + XBOX_PIC_APU_IRQ);
+    xPortInstallInterruptHandler(freertos_aci_interrupt, XBOX_PIC_BASE(XBOX_PIC_ACI_IRQ) + XBOX_PIC_ACI_IRQ);
+    xPortInstallInterruptHandler(freertos_usb1_interrupt, XBOX_PIC_BASE(XBOX_PIC_USB1_IRQ) + XBOX_PIC_USB1_IRQ);
+    xPortInstallInterruptHandler(freertos_ide_interrupt, XBOX_PIC_BASE(XBOX_PIC_IDE_IRQ) + XBOX_PIC_IDE_IRQ);
 }

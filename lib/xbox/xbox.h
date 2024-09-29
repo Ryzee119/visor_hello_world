@@ -62,10 +62,6 @@
 #define XBOX_APIC_BASE   0xFEE00000
 #define XBOX_IOAPIC_BASE 0xFEC00000
 
-// IRQs
-#define XBOX_PIT_TIMER_IRQ 0
-#define XBOX_PIC_SLAVE_IRQ 2
-
 /* PCI Bus Address and MMIO - We match stock xbox */
 #define PCI_XBOX_SYSTEM_BUS 0
 #define PCI_XBOX_GPU_BUS    1
@@ -86,34 +82,30 @@
 #define PCI_SMBUS_IO_REGISTER_BASE_2 0xC200
 
 // Bus 0, device 2, function 0.
-#define PCI_USB0_DEVICE_ID              2
-#define PCI_USB0_FUNCTION_ID            0
-#define PCI_USB0_IRQ                    1
+#define PCI_USB0_DEVICE_ID   2
+#define PCI_USB0_FUNCTION_ID 0
+
 #define PCI_USB0_MEMORY_REGISTER_BASE_0 0xFED00000
 
 // Bus 0, device 3, function 0.
 #define PCI_USB1_DEVICE_ID              3
 #define PCI_USB1_FUNCTION_ID            0
-#define PCI_USB1_IRQ                    9
 #define PCI_USB1_MEMORY_REGISTER_BASE_0 0xFED08000
 
 // Bus 0, device 4, function 0.
 #define PCI_NIC_DEVICE_ID              4
 #define PCI_NIC_FUNCTION_ID            0
-#define PCI_NIC_IRQ                    4
 #define PCI_NIC_MEMORY_REGISTER_BASE_0 0xFEF00000
 #define PCI_NIC_IO_REGISTER_BASE_1     0xE000
 
 // Bus 0, device 5, function 0.
 #define PCI_APU_DEVICE_ID              5
 #define PCI_APU_FUNCTION_ID            0
-#define PCI_APU_IRQ                    5
 #define PCI_APU_MEMORY_REGISTER_BASE_0 0xFE800000
 
 // Bus 0, device 6, function 0.
 #define PCI_ACI_DEVICE_ID              6
 #define PCI_ACI_FUNCTION_ID            0
-#define PCI_ACI_IRQ                    6
 #define PCI_ACI_IO_REGISTER_BASE_0     0xD000
 #define PCI_ACI_IO_REGISTER_BASE_1     0xD200
 #define PCI_ACI_MEMORY_REGISTER_BASE_2 0xFEC00000
@@ -121,7 +113,6 @@
 // Bus 0, device 9, function 0.
 #define PCI_IDE_DEVICE_ID          9
 #define PCI_IDE_FUNCTION_ID        0
-#define PCI_IDE_IRQ                14
 #define PCI_IDE_IO_REGISTER_BASE_4 0xFF60
 
 // Bus 0, device 30, function 0.
@@ -131,7 +122,6 @@
 // Bus 1, device 0, device 0.
 #define PCI_GPU_DEVICE_ID              0
 #define PCI_GPU_FUNCTION_ID            0
-#define PCI_GPU_IRQ                    3
 #define PCI_GPU_MEMORY_REGISTER_BASE_0 0xFD000000
 
 #if (0)
@@ -146,25 +136,44 @@
 #define SMBUS_I2C_BASE         0x1000
 #endif
 
-// Ports
-#define XBOX_PIC1_COMMAND_PORT 0x20
-#define XBOX_PIC1_DATA_PORT    (XBOX_PIC1_COMMAND_PORT + 1)
-
-#define XBOX_PIC2_COMMAND_PORT 0xA0
-#define XBOX_PIC2_DATA_PORT    (XBOX_PIC2_COMMAND_PORT)
-
-#define XBOX_DMA1_PORT 0x00
-#define XBOX_DMA2_PORT 0xC0
-
-#define XBOX_PIT_CHANNEL0     0x40
-#define XBOX_PIT_COMMAND_PORT 0x43
-
-#define XBOX_ACPI_TIMER_PORT 0x8008 // Cromwell
-
+// PIC Interrupt Controller
 // What retail uses - we also move away from FreeRTOS which uses 0x20 and 0x21
 #define XBOX_PIC1_BASE_VECTOR_ADDRESS 0x30
 #define XBOX_PIC2_BASE_VECTOR_ADDRESS 0x38
+#define XBOX_PIC_BASE(pic_irq)        (pic_irq < 8 ? XBOX_PIC1_BASE_VECTOR_ADDRESS : XBOX_PIC2_BASE_VECTOR_ADDRESS)
 
+#define XBOX_PIC1_COMMAND_PORT 0x20
+#define XBOX_PIC1_DATA_PORT    (XBOX_PIC1_COMMAND_PORT + 1)
+#define XBOX_PIC2_COMMAND_PORT 0xA0
+#define XBOX_PIC2_DATA_PORT    (XBOX_PIC2_COMMAND_PORT + 1)
+
+#define XBOX_PIT_TIMER_IRQ 0
+#define XBOX_PIC_USB0_IRQ  1
+#define XBOX_PIC_SLAVE_IRQ 2 // PIC2 is connected to IRQ2 of PIC1
+#define XBOX_PIC_GPU_IRQ   3
+#define XBOX_PIC_NIC_IRQ   4
+#define XBOX_PIC_APU_IRQ   5
+#define XBOX_PIC_ACI_IRQ   6
+#define XBOX_PIC_USB1_IRQ  9
+#define XBOX_PIC_IDE_IRQ   14
+
+// DMA
+#define XBOX_DMA_CHANNELS_0_3_PORT 0x00
+#define XBOX_DMA_CHANNELS_4_7_PORT 0xC0
+
+// PIT
+#define XBOX_PIT_CHANNEL0     0x40
+#define XBOX_PIT_COMMAND_PORT 0x43
+
+// ACPI
+#define XBOX_ACPI_TIMER_PORT 0x8008 // Cromwell
+
+// SuperIO
+#define XBOX_SIO_INDEX_PORT 0x2E
+#define XBOX_SIO_DATA_PORT  0x2F
+#define XBOX_SERIAL_COM1    0x03F8
+
+// SMBus
 #define XBOX_SMBUS_ADDRESS_SMC              0x20
 #define XBOX_SMBUS_ADDRESS_EEPROM           0xA8
 #define XBOX_SMBUS_ADDRESS_TEMP             0x98

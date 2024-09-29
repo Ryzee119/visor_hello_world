@@ -3,7 +3,7 @@
 
 #include "xbox.h"
 
-#define SBMUS_IO_BASE    0xc000
+#define SBMUS_IO_BASE    PCI_SMBUS_IO_REGISTER_BASE_1
 #define SMBUS_STATUS     (SBMUS_IO_BASE + 0x00)
 #define SMBUS_CONTROL    (SBMUS_IO_BASE + 0x02)
 #define SMBUS_ADDRESS    (SBMUS_IO_BASE + 0x04)

@@ -168,7 +168,7 @@ void XAudioInit(int sampleSizeInBits, int numChannels, XAudioCallback callback, 
     analogDrained = false;
     digitalDrained = false;
 
-    pic8259_irq_enable(XBOX_PIC1_DATA_PORT, PCI_ACI_IRQ);
+    pic8259_irq_enable(XBOX_PIC1_DATA_PORT, XBOX_PIC_ACI_IRQ);
 
 }
 

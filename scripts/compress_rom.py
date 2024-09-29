@@ -14,9 +14,8 @@ def compress_rom(input_file, output_file):
             if section.name in sections_to_extract:
                 original_data.extend(section.data())
 
-    # Compress the data using LZ4
+    # Compress the data using LZ4, size of the uncompressed data is stored in the header
     compressed_data = lz4.block.compress(original_data, mode='high_compression', store_size = True)
-    
 
     with open(output_file, 'wb') as f_out:
         f_out.write(compressed_data)

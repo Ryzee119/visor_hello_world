@@ -63,14 +63,14 @@ void xbox_pci_init(void)
     h->command |= PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER;
     h->type_0.base_address[0] = PCI_NIC_MEMORY_REGISTER_BASE_0;
     h->type_0.base_address[1] = PCI_NIC_IO_REGISTER_BASE_1 | PCI_COMMAND_IO;
-    h->type_0.interrupt_line = PCI_NIC_IRQ;
+    h->type_0.interrupt_line = XBOX_PIC_NIC_IRQ;
     pci_io_output_n(PCI_XBOX_SYSTEM_BUS, PCI_NIC_DEVICE_ID, PCI_NIC_FUNCTION_ID, sizeof(pci_mem), (uint8_t *)pci_mem);
 
     // USB0
     pci_io_input_n(PCI_XBOX_SYSTEM_BUS, PCI_USB0_DEVICE_ID, PCI_USB0_FUNCTION_ID, sizeof(pci_mem), (uint8_t *)pci_mem);
     h->command |= PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER;
     h->type_0.base_address[0] = PCI_USB0_MEMORY_REGISTER_BASE_0;
-    h->type_0.interrupt_line = PCI_USB0_IRQ;
+    h->type_0.interrupt_line = XBOX_PIC_USB0_IRQ;
     pci_io_output_n(PCI_XBOX_SYSTEM_BUS, PCI_USB0_DEVICE_ID, PCI_USB0_FUNCTION_ID, sizeof(pci_mem), (uint8_t *)pci_mem);
     pci_io_output_dword(PCI_XBOX_SYSTEM_BUS, PCI_USB0_DEVICE_ID, PCI_USB0_FUNCTION_ID, 0x50, 0x0000000f); // Port Enable?
 
@@ -78,7 +78,7 @@ void xbox_pci_init(void)
     pci_io_input_n(PCI_XBOX_SYSTEM_BUS, PCI_USB1_DEVICE_ID, PCI_USB1_FUNCTION_ID, sizeof(pci_mem), (uint8_t *)pci_mem);
     h->command |= PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER;
     h->type_0.base_address[0] = PCI_USB1_MEMORY_REGISTER_BASE_0;
-    h->type_0.interrupt_line = PCI_USB1_IRQ;
+    h->type_0.interrupt_line = XBOX_PIC_USB1_IRQ;
     pci_io_output_n(PCI_XBOX_SYSTEM_BUS, PCI_USB1_DEVICE_ID, PCI_USB1_FUNCTION_ID, sizeof(pci_mem), (uint8_t *)pci_mem);
     pci_io_output_dword(PCI_XBOX_SYSTEM_BUS, PCI_USB1_DEVICE_ID, PCI_USB1_FUNCTION_ID, 0x50, 0x00000030);
 
@@ -88,14 +88,14 @@ void xbox_pci_init(void)
     h->type_0.base_address[0] = PCI_ACI_IO_REGISTER_BASE_0 | PCI_COMMAND_IO;
     h->type_0.base_address[1] = PCI_ACI_IO_REGISTER_BASE_1 | PCI_COMMAND_IO;
     h->type_0.base_address[2] = PCI_ACI_MEMORY_REGISTER_BASE_2;
-    h->type_0.interrupt_line = PCI_ACI_IRQ;
+    h->type_0.interrupt_line = XBOX_PIC_ACI_IRQ;
     pci_io_output_n(PCI_XBOX_SYSTEM_BUS, PCI_ACI_DEVICE_ID, PCI_ACI_FUNCTION_ID, sizeof(pci_mem), (uint8_t *)pci_mem);
 
     // APU
     pci_io_input_n(PCI_XBOX_SYSTEM_BUS, PCI_APU_DEVICE_ID, PCI_APU_FUNCTION_ID, sizeof(pci_mem), (uint8_t *)pci_mem);
     h->command |= PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER;
     h->type_0.base_address[0] = PCI_APU_MEMORY_REGISTER_BASE_0;
-    h->type_0.interrupt_line = PCI_APU_IRQ;
+    h->type_0.interrupt_line = XBOX_PIC_APU_IRQ;
     pci_io_output_n(PCI_XBOX_SYSTEM_BUS, PCI_APU_DEVICE_ID, PCI_APU_FUNCTION_ID, sizeof(pci_mem), (uint8_t *)pci_mem);
 
     // ?
@@ -131,7 +131,7 @@ void xbox_pci_init(void)
     pci_io_input_n(PCI_XBOX_GPU_BUS, PCI_GPU_DEVICE_ID, PCI_GPU_FUNCTION_ID, sizeof(pci_mem), (uint8_t *)pci_mem);
     h->command |= PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER;
     h->type_0.base_address[0] = PCI_GPU_MEMORY_REGISTER_BASE_0;
-    h->type_0.interrupt_line = PCI_GPU_IRQ;
+    h->type_0.interrupt_line = XBOX_PIC_GPU_IRQ;
     pci_mem[0x4C / 4] = 0x00000114;
     pci_io_output_n(PCI_XBOX_GPU_BUS, PCI_GPU_DEVICE_ID, PCI_GPU_FUNCTION_ID, sizeof(pci_mem), (uint8_t *)pci_mem);
 
