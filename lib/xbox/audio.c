@@ -110,7 +110,7 @@ void XAudioInit(int sampleSizeInBits, int numChannels, XAudioCallback callback, 
 {
     AC97_DEVICE *pac97device = &ac97Device;
 
-    pac97device->mmio = (unsigned int *)0xfec00000;
+    pac97device->mmio = (unsigned int *)PCI_ACI_MEMORY_REGISTER_BASE_2;
     pac97device->nextDescriptor = 0;
     pac97device->callback = callback;
     pac97device->callbackData = data;
@@ -169,7 +169,6 @@ void XAudioInit(int sampleSizeInBits, int numChannels, XAudioCallback callback, 
     digitalDrained = false;
 
     pic8259_irq_enable(XBOX_PIC1_DATA_PORT, XBOX_PIC_ACI_IRQ);
-
 }
 
 // tell the chip it is OK to play...

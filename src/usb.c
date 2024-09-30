@@ -36,7 +36,6 @@ usbh_class_driver_t const *usbh_app_driver_get_cb(uint8_t *driver_count)
     return &usbh_xinput_driver;
 }
 
-void dooom_new_input(uint16_t buttons, int16_t lx, int16_t ly, int16_t rx, int16_t ry, uint8_t lt, uint8_t rt);
 void tuh_xinput_report_received_cb(uint8_t dev_addr, uint8_t instance, xinputh_interface_t const *xid_itf, uint16_t len)
 {
     const xinput_gamepad_t *p = &xid_itf->pad;

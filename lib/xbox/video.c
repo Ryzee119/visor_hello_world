@@ -153,7 +153,7 @@ void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, voi
         }
     }
 
-    // Work out what PRAMDAC values we should should
+    // Work out what PRAMDAC values we should use
     const uint32_t *pramdac_offsets = PRAMDAC_OFFSETS;
     const uint32_t *pramdac_values = NULL;
     for (uint8_t i = 0; i < PRAMDAC_COUNT; i++) {

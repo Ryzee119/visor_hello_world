@@ -441,7 +441,7 @@ void resample_audio_stereo(int16_t *input, int input_size, int16_t *output, int 
 static void doom_sound_task(void *parameters)
 {
     static int16_t resampled_buffer0[2230 * 2]; //48000/11025 * 512 * 2 channels
-    static int16_t resampled_buffer1[2230 * 2]; //48000/11025 * 512* 2 channels
+    static int16_t resampled_buffer1[2230 * 2]; //48000/11025 * 512 * 2 channels
 
     memset(resampled_buffer0, 0, sizeof(resampled_buffer0));
     memset(resampled_buffer1, 0, sizeof(resampled_buffer1));
@@ -452,8 +452,15 @@ static void doom_sound_task(void *parameters)
     XAudioPlay();
 
     int buffer_index = 0;
+
+    uint32_t start_time = pdTICKS_TO_MS(xTaskGetTickCount());
     while (1) {
         xSemaphoreTake(doom_audio_semaphore, portMAX_DELAY);
+        uint32_t end_time = pdTICKS_TO_MS(xTaskGetTickCount());
+        uint32_t elapsed_time = end_time - start_time;
+        start_time = end_time;
+        printf_r("Audio elapsed time: %d\n", elapsed_time);
+
         int16_t *out_buffer = (buffer_index == 0) ? resampled_buffer0 : resampled_buffer1;
         out_buffer = (int16_t *)(0xF0000000 | (intptr_t)out_buffer);
         buffer_index ^= 1;

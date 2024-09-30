@@ -39,6 +39,8 @@ void display_clear(void);
 
 void usb_init(void);
 void interrupts_init(void);
+
 int doom_entry(const char *wad_path);
+void dooom_new_input(uint16_t buttons, int16_t lx, int16_t ly, int16_t rx, int16_t ry, uint8_t lt, uint8_t rt);
 
 #endif
