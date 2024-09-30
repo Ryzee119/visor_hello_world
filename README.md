@@ -13,5 +13,6 @@ References:
 * https://github.com/mborgerson/xqemu-kernel
 * https://github.com/Ernegien/xdecode
 
-sudo apt install build-essential cmake python3 python3-pip clang nasm
+sudo apt install git build-essential cmake python3 python3-pip clang nasm
+
 pip install objutils lz4 pyelftools

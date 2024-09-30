@@ -14,10 +14,21 @@ typedef struct usb_msc_device
     uint8_t drive_path[4];
     scsi_inquiry_resp_t inquiry_response;
     FATFS *fatfs;
-
 } usb_msc_device_t;
+static usb_msc_device_t msc_device[CFG_TUH_MSC];
 
-usb_msc_device_t msc_device[CFG_TUH_MSC];
+static DRESULT usb_msc_disk_ioctl(BYTE pdrv, BYTE cmd, void *buff);
+static DRESULT usb_msc_disk_write(BYTE pdrv, const BYTE *buff, LBA_t sector, UINT count);
+static DRESULT usb_msc_disk_read(BYTE pdrv, BYTE *buff, LBA_t sector, UINT count);
+static DSTATUS usb_msc_disk_initialize(BYTE pdrv);
+static DSTATUS usb_msc_disk_status(BYTE pdrv);
+static fileio_drv_t usb_msc_driver = {
+    .disk_status = usb_msc_disk_status,
+    .disk_initialize = usb_msc_disk_initialize,
+    .disk_read = usb_msc_disk_read,
+    .disk_write = usb_msc_disk_write,
+    .disk_ioctl = usb_msc_disk_ioctl,
+};
 
 void fileio_usb_init()
 {
@@ -43,7 +54,10 @@ static void msc_mount_task(void *parameters)
 {
     usb_msc_device_t *msc = parameters;
 
-    msc->drive_path[0] = '\0';
+    msc->drive_path[0] = '0' + msc->drive_number;
+    msc->drive_path[1] = ':';
+    msc->drive_path[3] = '\0';
+    
     msc->fatfs = pvPortMalloc(sizeof(FATFS));
     if (msc->fatfs == NULL) {
         printf_r("[USBMSC] Could not allocate memory for FATFS\n");
@@ -51,8 +65,9 @@ static void msc_mount_task(void *parameters)
         return;
     }
 
-    printf_r("[USBMSC] Mounting device at address %d\r\n", msc->dev_addr);
+    printf_r("[USBMSC] Mounting device at address %d, path %s\r\n", msc->dev_addr, msc->drive_path);
 
+    fileio_register_driver(msc->drive_number, &usb_msc_driver);
     FRESULT res = f_mount(msc->fatfs, (const TCHAR *)msc->drive_path, 1);
     if (res != FR_OK) {
         printf_r("[USBMSC] f_mount failed with error %d\r\n", res);
@@ -101,18 +116,18 @@ void tuh_msc_umount_cb(uint8_t dev_addr)
 }
 
 /* FATFS WRAPPER FOR USB IO */
-DSTATUS disk_status(BYTE pdrv)
+static DSTATUS usb_msc_disk_status(BYTE pdrv)
 {
-    uint8_t dev_addr = pdrv + 1;
-    return tuh_msc_mounted(dev_addr) ? 0 : STA_NODISK;
+    const usb_msc_device_t *msc = &msc_device[pdrv];
+    return tuh_msc_mounted(msc->dev_addr) ? 0 : STA_NODISK;
 }
 
-DSTATUS disk_initialize(BYTE pdrv)
+static DSTATUS usb_msc_disk_initialize(BYTE pdrv)
 {
-    return 0;
+    return RES_OK;
 }
 
-DRESULT disk_read(BYTE pdrv, BYTE *buff, LBA_t sector, UINT count)
+static DRESULT usb_msc_disk_read(BYTE pdrv, BYTE *buff, LBA_t sector, UINT count)
 {
     const usb_msc_device_t *msc = &msc_device[pdrv];
     int finished = 0;
@@ -129,7 +144,7 @@ DRESULT disk_read(BYTE pdrv, BYTE *buff, LBA_t sector, UINT count)
     return RES_ERROR;
 }
 
-DRESULT disk_write(BYTE pdrv, const BYTE *buff, LBA_t sector, UINT count)
+static DRESULT usb_msc_disk_write(BYTE pdrv, const BYTE *buff, LBA_t sector, UINT count)
 {
     const usb_msc_device_t *msc = &msc_device[pdrv];
     int finished = 0;
@@ -146,7 +161,7 @@ DRESULT disk_write(BYTE pdrv, const BYTE *buff, LBA_t sector, UINT count)
     return RES_ERROR;
 }
 
-DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void *buff)
+static DRESULT usb_msc_disk_ioctl(BYTE pdrv, BYTE cmd, void *buff)
 {
     const usb_msc_device_t *msc = &msc_device[pdrv];
     uint8_t dev_addr = msc->dev_addr;

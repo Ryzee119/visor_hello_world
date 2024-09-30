@@ -16,3 +16,6 @@
 [submodule "lib/arith64"]
 	path = lib/arith64
 	url = https://github.com/glitchub/arith64.git
+[submodule "lib/wildmidi"]
+	path = lib/wildmidi
+	url = https://github.com/Mindwerks/wildmidi.git

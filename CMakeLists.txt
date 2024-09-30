@@ -12,11 +12,13 @@ set(CMAKE_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/src)
 project(${PROJECT_NAME} C ASM ASM_NASM)
 add_executable(${OUTPUT_NAME})
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -ffunction-sections -fdata-sections -fomit-frame-pointer")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Os -ffunction-sections -fdata-sections -fomit-frame-pointer")
 
 # picolibc
 #set(_FORMAT_DEFAULT_INTEGER ON) #Smaller, no float support
 set(_FORMAT_DEFAULT_DOUBLE ON)
+# defien _WANT_FAST_BUFIO
+add_compile_definitions(_WANT_FAST_BUFIO)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/picolibc)
 
 #arith64 - prevents having to link libgcc for a couple functions
@@ -46,6 +48,13 @@ add_library(fatfs INTERFACE)
 target_include_directories(fatfs PRIVATE INTERFACE ${CMAKE_CURRENT_LIST_DIR}/config_fatfs)
 target_sources(fatfs INTERFACE ${FATFS_DIR}/ff.c ${FATFS_DIR}/ffunicode.c ${CMAKE_CURRENT_LIST_DIR}/config_fatfs/ffsystem.c)
 
+# WildMidi
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build a dynamic wildmidi library" FORCE)
+set(WANT_PLAYER OFF CACHE BOOL "Build WildMIDI player in addition to the libraries" FORCE)
+set(WANT_STATIC ON CACHE BOOL "Build static library in addition to dynamic library" FORCE)
+set(WANT_PLAYERSTATIC OFF CACHE BOOL "Build a statically linked WildMIDI player" FORCE)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/wildmidi)
+
 # Build our xbox specific code
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/xbox xbox)
 
@@ -53,7 +62,7 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/xbox xbox)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/pc pc)
 
 # Link the libraries
-target_link_libraries(${OUTPUT_NAME} PRIVATE c arith64 freertos_kernel pc xbox tinyusb xinput_host fatfs)
+target_link_libraries(${OUTPUT_NAME} PRIVATE c arith64 freertos_kernel pc xbox tinyusb xinput_host fatfs libwildmidi-static)
 
 # Create a binary from the elf
 add_custom_command(TARGET ${OUTPUT_NAME} POST_BUILD

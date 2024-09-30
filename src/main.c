@@ -43,7 +43,7 @@ static void doom_task(void *parameters)
                 }
             }
         }
-        doom_entry("doom1.wad");
+        doom_entry("0:/doom1.wad");
     }
 }
 
@@ -92,7 +92,7 @@ static void freertos_entry(void *parameters)
     xbox_led_output(XLED_GREEN, XLED_GREEN, XLED_GREEN, XLED_GREEN);
 
     doom_mutex = xSemaphoreCreateBinary();
-    xTaskCreate(doom_task, "Doom!", configMINIMAL_STACK_SIZE, NULL, THREAD_PRIORITY_NORMAL, NULL);
+    xTaskCreate(doom_task, "Doom!", configMINIMAL_STACK_SIZE * 2, NULL, THREAD_PRIORITY_NORMAL, NULL);
 
     vTaskDelete(NULL);
 }
