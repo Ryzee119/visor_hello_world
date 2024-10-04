@@ -47,6 +47,8 @@ static void doom_task(void *parameters)
     }
 }
 
+ata_device_t ata_device;
+
 static void freertos_entry(void *parameters)
 {
     (void)parameters;
@@ -66,9 +68,13 @@ static void freertos_entry(void *parameters)
     __asm__ __volatile__("" ::: "memory");
     freertos_running = 1;
 
+    doom_mutex = xSemaphoreCreateBinary();
+    xTaskCreate(doom_task, "Doom!", configMINIMAL_STACK_SIZE * 2, NULL, THREAD_PRIORITY_NORMAL, NULL);
+
     display_init();
     interrupts_init();
     usb_init();
+    ata_device_init(&ata_device,PCI_IDE_IO_REGISTER_BASE_4, XBOX_ATA_PRIMARY_BUS_CTRL_BASE, XBOX_ATA_PRIMARY_BUS_IO_BASE, 1);
 
     cpuid_eax_01 cpuid_info;
     cpu_read_cpuid(CPUID_VERSION_INFO, &cpuid_info.eax.flags, &cpuid_info.ebx.flags, &cpuid_info.ecx.flags,
@@ -90,9 +96,6 @@ static void freertos_entry(void *parameters)
     printf_r("[SYS] MB: %d C\n", temp2);
 
     xbox_led_output(XLED_GREEN, XLED_GREEN, XLED_GREEN, XLED_GREEN);
-
-    doom_mutex = xSemaphoreCreateBinary();
-    xTaskCreate(doom_task, "Doom!", configMINIMAL_STACK_SIZE * 2, NULL, THREAD_PRIORITY_NORMAL, NULL);
 
     vTaskDelete(NULL);
 }

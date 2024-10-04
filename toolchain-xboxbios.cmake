@@ -7,7 +7,10 @@ set(CMAKE_ASM_COMPILER gcc) # Ugh FreeRTOS asm needs gcc
 set(CMAKE_ASM_NASM_COMPILER nasm)
 set(CMAKE_OBJCOPY objcopy)
 
-set(CMAKE_C_STANDARD_INCLUDE_DIRECTORIES ${PROJECT_BINARY_DIR}/lib/picolibc/picolibc/include)
+#set(CMAKE_C_STANDARD_INCLUDE_DIRECTORIES ${PROJECT_BINARY_DIR}/lib/picolibc/picolibc/include)
+
+#include ${PROJECT_BINARY_DIR}/lib/picolibc/picolibc/include as isystem
+set(CMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES ${PROJECT_BINARY_DIR}/lib/picolibc/picolibc/include)
 
 set(CMAKE_C_FLAGS_INIT "\
     -target i386-elf -m32 -march=pentium \

@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <pc/ata.h>
 #include <pc/cpu.h>
 #include <pc/dma8237.h>
 #include <pc/ia32_compact.h>
@@ -181,4 +182,9 @@
 #define XBOX_SMBUS_ADDRESS_ENCODER_FOCUS    0xD4
 #define XBOX_SMBUS_ADDRESS_ENCODER_XCALIBUR 0xE0
 
+// IDE ATA
+#define XBOX_ATA_PRIMARY_BUS_IO_BASE   0x1F0
+#define XBOX_ATA_PRIMARY_BUS_CTRL_BASE 0x3F6
+// #define ATA_SECONDARY_BUS_IO_BASE   0x170
+// #define ATA_SECONDARY_BUS_CTRL_BASE 0x376
 #endif
