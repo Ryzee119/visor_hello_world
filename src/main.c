@@ -74,7 +74,8 @@ static void freertos_entry(void *parameters)
     display_init();
     interrupts_init();
     usb_init();
-    ata_device_init(&ata_device,PCI_IDE_IO_REGISTER_BASE_4, XBOX_ATA_PRIMARY_BUS_CTRL_BASE, XBOX_ATA_PRIMARY_BUS_IO_BASE, 1);
+    ata_device_init(&ata_device, XBOX_ATA_BUSMASTER_BASE, XBOX_ATA_PRIMARY_BUS_CTRL_BASE, XBOX_ATA_PRIMARY_BUS_IO_BASE,
+                    1);
 
     cpuid_eax_01 cpuid_info;
     cpu_read_cpuid(CPUID_VERSION_INFO, &cpuid_info.eax.flags, &cpuid_info.ebx.flags, &cpuid_info.ecx.flags,

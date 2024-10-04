@@ -191,16 +191,16 @@ int8_t ata_device_init(ata_device_t *ata_device, uint16_t busmaster_base, uint16
         }
     }
 
-#if (0)
-    printf("ATA Device: %s\n", ata_device->model);
-    printf("Serial: %s\n", ata_device->serial);
-    printf("Firmware: %s\n", ata_device->firmware);
-    printf("Total Sectors: %d\n", ata_device->total_sector_count_lba28);
-    printf("Total Sectors: %llu\n", ata_device->total_sector_count_lba48);
-    printf("Wire80: %d\n", ata_device->wire80);
-    printf("LBA48: %d\n", ata_device->lba48);
-    printf("Supported UDMA: %d\n", ata_device->supported_udma_mode);
-    printf("Actual UDMA: %d\n", ata_device->actual_udma_mode);
+#if (1)
+    printf("[ATA] Mode: %s\n", ata_device->model);
+    printf("[ATA] Serial: %s\n", ata_device->serial);
+    printf("[ATA] Firmware: %s\n", ata_device->firmware);
+    printf("[ATA] LBA28 Sectors: %d\n", ata_device->total_sector_count_lba28);
+    printf("[ATA] LBA48 Sectors: %llu\n", ata_device->total_sector_count_lba48);
+    printf("[ATA] Wire80: %d\n", ata_device->wire80);
+    printf("[ATA] LBA48: %d\n", ata_device->lba48);
+    printf("[ATA] Supported UDMA: %d\n", ata_device->supported_udma_mode);
+    printf("[ATA] Actual UDMA: %d\n", ata_device->actual_udma_mode);
 #endif
 
     // Wait for the drive to be ready

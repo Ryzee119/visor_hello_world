@@ -27,7 +27,7 @@ target_sources(arith64 INTERFACE ${ARITH64_DIR}/arith64.c)
 
 # FreeRTOS
 set(FREERTOS_PORT "GCC_IA32_FLAT")
-set(FREERTOS_HEAP "3") # 3 Wraps malloc/free
+set(FREERTOS_HEAP "3") # 3=Wraps malloc/free
 add_library(freertos_config INTERFACE)
 target_include_directories(freertos_config SYSTEM INTERFACE config_freertos)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/freertos_kernel freertos_kernel)

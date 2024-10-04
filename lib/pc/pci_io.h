@@ -75,7 +75,7 @@ typedef struct
             uint16_t bridge_control;
         } type_1;
     };
-    // No type 2 on xbox?
+    // Type 2...
 } pci_header_t;
 
 uint8_t pci_io_input_byte(uint8_t bus, uint8_t dev, uint8_t func, uint8_t reg);

@@ -90,7 +90,7 @@ __attribute__((section(".boot_code"))) void *boot_memmove(void *dest, const void
             *d++ = *s++;
         }
     } else {
-        char *lasts = s + (len - 1);
+        const char *lasts = s + (len - 1);
         char *lastd = d + (len - 1);
         while (len--) {
             *lastd-- = *lasts--;
