@@ -16,3 +16,6 @@
 [submodule "lib/arith64"]
 	path = lib/arith64
 	url = https://github.com/glitchub/arith64.git
+[submodule "lib/fatx"]
+	path = lib/fatx
+	url = https://github.com/mborgerson/fatx.git

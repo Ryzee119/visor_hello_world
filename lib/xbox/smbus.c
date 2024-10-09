@@ -18,6 +18,7 @@ int8_t xbox_smbus_io(uint8_t address, uint8_t command, void *data, uint8_t data_
         }
     }
 
+smbus_collision_retry:
     spinlock_acquire(&lock);
 
     while (io_input_word(SMBUS_STATUS) & SMBUS_STATUS_BUSY) {
@@ -36,9 +37,9 @@ int8_t xbox_smbus_io(uint8_t address, uint8_t command, void *data, uint8_t data_
     switch (data_len) {
         case 0:
             transfer_type = SMBUS_CONTROL_TRANSFER_TYPE_ZERO;
-            if (read == 0) {
-                io_output_byte(SMBUS_COMMAND, *data8);
-            }
+            //if (read == 0) {
+            //    io_output_byte(SMBUS_COMMAND, *data8);
+            //}
             break;
         case 1:
             transfer_type = SMBUS_CONTROL_TRANSFER_TYPE_BYTE;
@@ -77,13 +78,13 @@ int8_t xbox_smbus_io(uint8_t address, uint8_t command, void *data, uint8_t data_
 
     if (status & SMBUS_STATUS_ERROR) {
         spinlock_release(&lock);
+        if (status & SMBUS_STATUS_COLLISION) {
+            goto smbus_collision_retry;
+        }
 #if (0)
         XPRINTF("[SMBUS] ERROR Address %02x, Command: %02x Error: %04X: ", address, command, status);
         if (status & SMBUS_STATUS_ABORT) {
             XPRINTF("Aborted ");
-        }
-        if (status & SMBUS_STATUS_COLLISION) {
-            XPRINTF("Collision ");
         }
         if (status & SMBUS_STATUS_PROTOCOL_ERROR) {
             XPRINTF("Protocol Error ");

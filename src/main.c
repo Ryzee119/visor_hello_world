@@ -47,7 +47,7 @@ static void doom_task(void *parameters)
     }
 }
 
-ata_device_t ata_device;
+ata_bus_t ata_bus;
 
 static void freertos_entry(void *parameters)
 {
@@ -65,7 +65,6 @@ static void freertos_entry(void *parameters)
     xPortInstallInterruptHandler(vPortTimerHandler, XBOX_PIC1_BASE_VECTOR_ADDRESS + XBOX_PIT_TIMER_IRQ);
     pic8259_irq_enable(XBOX_PIC1_DATA_PORT, XBOX_PIT_TIMER_IRQ);
 
-    __asm__ __volatile__("" ::: "memory");
     freertos_running = 1;
 
     doom_mutex = xSemaphoreCreateBinary();
@@ -74,8 +73,21 @@ static void freertos_entry(void *parameters)
     display_init();
     interrupts_init();
     usb_init();
-    ata_device_init(&ata_device, XBOX_ATA_BUSMASTER_BASE, XBOX_ATA_PRIMARY_BUS_CTRL_BASE, XBOX_ATA_PRIMARY_BUS_IO_BASE,
-                    1);
+
+    ide_bus_init(XBOX_ATA_BUSMASTER_BASE, XBOX_ATA_PRIMARY_BUS_CTRL_BASE, XBOX_ATA_PRIMARY_BUS_IO_BASE, &ata_bus);
+    uint8_t *sector_buffer = pvPortMalloc(ATA_SECTOR_SIZE * 4096);
+    //aligned to 4096 bites
+    sector_buffer = (uint8_t *)(((uint32_t)sector_buffer + 4095) & ~4095);
+    int8_t error = ide_dma_read(&ata_bus, 0, 3, sector_buffer, 1);
+    if (error) {
+        printf_r("[ATA] Error reading sector 0\n");
+    } else {
+        printf_r("[ATA] Sector 0: %p\n", sector_buffer);
+        for (uint32_t i = 0; i < 8; i++) {
+            printf_r("%02x", sector_buffer[i]);
+        }
+        printf_r("\n");
+    }
 
     cpuid_eax_01 cpuid_info;
     cpu_read_cpuid(CPUID_VERSION_INFO, &cpuid_info.eax.flags, &cpuid_info.ebx.flags, &cpuid_info.ecx.flags,
