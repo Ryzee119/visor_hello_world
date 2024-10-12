@@ -133,7 +133,7 @@ static DRESULT usb_msc_disk_read(BYTE pdrv, BYTE *buff, LBA_t sector, UINT count
     int finished = 0;
     if (tuh_msc_read10(msc->dev_addr, 0, buff, sector, (uint16_t)count, msc_transfer_cb, (uintptr_t)&finished)) {
         while (finished == 0) {
-            taskYIELD();
+            system_yield(0);
         }
         if (finished == -1) {
             printf_r("disk_read failed, sector %d, count %d\n", sector, count);
@@ -150,7 +150,7 @@ static DRESULT usb_msc_disk_write(BYTE pdrv, const BYTE *buff, LBA_t sector, UIN
     int finished = 0;
     if (tuh_msc_write10(msc->dev_addr, 0, buff, sector, (uint16_t)count, msc_transfer_cb, (uintptr_t)&finished)) {
         while (finished == 0) {
-            taskYIELD();
+            system_yield(0);
         }
         if (finished == -1) {
             printf_r("disk_write failed\n");

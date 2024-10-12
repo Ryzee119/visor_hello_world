@@ -152,10 +152,11 @@ int doom_entry(const char *wad_path)
 
     int chunk_size = 256 * 1024;
     int i = 0;
+    printf_r("[%*s]\r[", cached_wad_size / chunk_size + 1, " ");
     while (chunk_size == 256 * 1024) {
         chunk_size = fread(&cached_wad_data[i], 1, chunk_size, fp);
         i += chunk_size;
-        printf_r("i=%d, %d\n", i, chunk_size);
+        printf_r("=");
     }
     printf_r("\n");
     fclose(fp);

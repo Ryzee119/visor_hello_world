@@ -10,6 +10,8 @@ __attribute__((section(".boot_code"))) static void smc_io(uint8_t command, uint8
         read = 1;
     }
 
+    const uint16_t SMBUS_IO_BASE = PCI_SMBUS_IO_REGISTER_BASE_1;
+
     while (io_input_byte(SMBUS_STATUS) & SMBUS_STATUS_BUSY)
         ;
 
@@ -118,6 +120,7 @@ void boot(void)
 
     xbox_led_output(XLED_RED, XLED_RED, XLED_RED, XLED_RED);
 
+    smbus_init(PCI_SMBUS_IO_REGISTER_BASE_1);
     xbox_serial_init();
 
     cpu_disable_cache();
@@ -155,9 +158,9 @@ void boot(void)
     mmio_output_dword(XBOX_APIC_BASE + APIC_SIV, 0x00000000);
 
     //?
-    // xbox_smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x1A, 0x01);
-    // xbox_smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x1B, 0x04);
-    // xbox_smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x19, 0x01);
+    // smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x1A, 0x01);
+    // smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x1B, 0x04);
+    // smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x19, 0x01);
     xbox_led_output(XLED_ORANGE, XLED_ORANGE, XLED_ORANGE, XLED_ORANGE);
 
     __asm__("sti");

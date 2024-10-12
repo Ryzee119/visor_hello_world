@@ -398,12 +398,12 @@ uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter)
                 case XBOX_SMBUS_ADDRESS_ENCODER_XCALIBUR:
                     if (*parameter) {
                         uint8_t output = (current_output_mode_coding >> 24) & 0x0F;
-                        xbox_smbus_output_dword(current_encoder_address, 0x04, output);
+                        smbus_output_dword(current_encoder_address, 0x04, output);
                     } else {
-                        xbox_smbus_input_dword(current_encoder_address, 0x04, &temp);
-                        xbox_smbus_output_dword(current_encoder_address, 0x04, temp | 0x00000000F);
-                        xbox_smbus_input_dword(current_encoder_address, 0x00, &temp);
-                        xbox_smbus_output_dword(current_encoder_address, 0x00, temp & 0xFFFFFFFD);
+                        smbus_input_dword(current_encoder_address, 0x04, &temp);
+                        smbus_output_dword(current_encoder_address, 0x04, temp | 0x00000000F);
+                        smbus_input_dword(current_encoder_address, 0x00, &temp);
+                        smbus_output_dword(current_encoder_address, 0x00, temp & 0xFFFFFFFD);
                     }
 
                     break;
@@ -411,9 +411,9 @@ uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter)
                     break;
                 case XBOX_SMBUS_ADDRESS_ENCODER_FOCUS:
                     if (*parameter) {
-                        xbox_smbus_output_byte(current_encoder_address, FOCUS_CTRL_PWR_MGNT_16, 0x00);
+                        smbus_output_byte(current_encoder_address, FOCUS_CTRL_PWR_MGNT_16, 0x00);
                     } else {
-                        xbox_smbus_output_byte(current_encoder_address, FOCUS_CTRL_PWR_MGNT_16, 0x0F);
+                        smbus_output_byte(current_encoder_address, FOCUS_CTRL_PWR_MGNT_16, 0x0F);
                     }
                     break;
                 default:
@@ -434,8 +434,8 @@ uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter)
                     } else {
                         *parameter = 16;
                     }
-                    xbox_smbus_output_byte(current_encoder_address, FOCUS_SDTVI_FLK_16, (uint16_t)(*parameter + 0xFF));
-                    xbox_smbus_output_byte(current_encoder_address, FOCUS_SDTVI_FLK_16, (uint16_t)(*parameter + 0x00));
+                    smbus_output_byte(current_encoder_address, FOCUS_SDTVI_FLK_16, (uint16_t)(*parameter + 0xFF));
+                    smbus_output_byte(current_encoder_address, FOCUS_SDTVI_FLK_16, (uint16_t)(*parameter + 0x00));
 
                     break;
                 default:

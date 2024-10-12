@@ -8,7 +8,11 @@ extern void vPortTimerHandler(void);
 void system_yield(uint32_t ms)
 {
     if (freertos_running) {
-        vTaskDelay(pdMS_TO_TICKS(ms));
+        if (ms == 0) {
+            taskYIELD();
+        } else {
+            vTaskDelay(pdMS_TO_TICKS(ms));
+        }
     } else {
         xbox_timer_spin_wait(XBOX_TIMER_MS_TO_TICKS(ms));
     }
@@ -74,6 +78,7 @@ static void freertos_entry(void *parameters)
     interrupts_init();
     usb_init();
 
+#if (0)
     ide_bus_init(XBOX_ATA_BUSMASTER_BASE, XBOX_ATA_PRIMARY_BUS_CTRL_BASE, XBOX_ATA_PRIMARY_BUS_IO_BASE, &ata_bus);
     uint8_t *sector_buffer = pvPortMalloc(ATA_SECTOR_SIZE * 4096);
     //aligned to 4096 bites
@@ -88,7 +93,7 @@ static void freertos_entry(void *parameters)
         }
         printf_r("\n");
     }
-
+#endif 
     cpuid_eax_01 cpuid_info;
     cpu_read_cpuid(CPUID_VERSION_INFO, &cpuid_info.eax.flags, &cpuid_info.ebx.flags, &cpuid_info.ecx.flags,
                    &cpuid_info.edx.flags);
@@ -103,8 +108,8 @@ static void freertos_entry(void *parameters)
     printf_r("[CPU] Feature Bits (ECX): 0x%08x\n", cpuid_info.ecx.flags);
 
     uint8_t temp1, temp2;
-    xbox_smbus_input_byte(XBOX_SMBUS_ADDRESS_TEMP, 0x00, &temp1);
-    xbox_smbus_input_byte(XBOX_SMBUS_ADDRESS_TEMP, 0x01, &temp2);
+    smbus_input_byte(XBOX_SMBUS_ADDRESS_TEMP, 0x00, &temp1);
+    smbus_input_byte(XBOX_SMBUS_ADDRESS_TEMP, 0x01, &temp2);
     printf_r("[SYS] CPU: %d C\n", temp1);
     printf_r("[SYS] MB: %d C\n", temp2);
 

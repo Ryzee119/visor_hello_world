@@ -65,17 +65,17 @@ const uint8_t XCALIBUR_LOOKUP_INDEX[][65] = {
 
 uint8_t xbox_encoder_detect(void)
 {
-    if (xbox_smbus_poke(XBOX_SMBUS_ADDRESS_ENCODER_CONEXANT) != SMBUS_RETURN_ERROR) {
+    if (smbus_poke(XBOX_SMBUS_ADDRESS_ENCODER_CONEXANT) != SMBUS_RETURN_ERROR) {
         XPRINTF("[ENCODER] Detected Conexant encoder\n");
         return XBOX_SMBUS_ADDRESS_ENCODER_CONEXANT;
     }
 
-    if (xbox_smbus_poke(XBOX_SMBUS_ADDRESS_ENCODER_FOCUS) != SMBUS_RETURN_ERROR) {
+    if (smbus_poke(XBOX_SMBUS_ADDRESS_ENCODER_FOCUS) != SMBUS_RETURN_ERROR) {
         XPRINTF("[ENCODER] Detected Focus encoder\n");
         return XBOX_SMBUS_ADDRESS_ENCODER_FOCUS;
     }
 
-    if (xbox_smbus_poke(XBOX_SMBUS_ADDRESS_ENCODER_XCALIBUR) != SMBUS_RETURN_ERROR) {
+    if (smbus_poke(XBOX_SMBUS_ADDRESS_ENCODER_XCALIBUR) != SMBUS_RETURN_ERROR) {
         XPRINTF("[ENCODER] Detected Xcalibur encoder\n");
         return XBOX_SMBUS_ADDRESS_ENCODER_XCALIBUR;
     }
@@ -144,34 +144,34 @@ void xbox_encoder_configure(uint32_t mode_coding, display_information_t *display
             for (uint8_t i = 1; i < sizeof(XCALIBUR_OFFSETS); i++) {
                 uint8_t command = XCALIBUR_OFFSETS[i];
                 uint32_t value = XCALIBUR_VALUES[XCALIBUR_LOOKUP_INDEX[lookup_row][i]];
-                xbox_smbus_output_dword(current_encoder_address, command, value);
+                smbus_output_dword(current_encoder_address, command, value);
             }
 
             // Enable SCART
             if (is_sd_scart) {
-                xbox_smbus_input_dword(current_encoder_address, 0x01, &temp);
-                xbox_smbus_output_dword(current_encoder_address, 0x01, (temp & 0xfcffffff) | 0xc00008);
-                xbox_smbus_input_dword(current_encoder_address, 0x60, &temp);
-                xbox_smbus_output_dword(current_encoder_address, 0x60, temp & 0xfeffffff);
-                xbox_smbus_output_dword(current_encoder_address, 0x58, 0x00000000);
+                smbus_input_dword(current_encoder_address, 0x01, &temp);
+                smbus_output_dword(current_encoder_address, 0x01, (temp & 0xfcffffff) | 0xc00008);
+                smbus_input_dword(current_encoder_address, 0x60, &temp);
+                smbus_output_dword(current_encoder_address, 0x60, temp & 0xfeffffff);
+                smbus_output_dword(current_encoder_address, 0x58, 0x00000000);
             }
 
             // Some kind of HD mode setup?
             if (mode_coding & 0xC0000000) {
                 if ((mode_coding & 0xC0000000) == 0x80000000) {
-                    xbox_smbus_output_dword(current_encoder_address, 0x07, 0x00000000);
+                    smbus_output_dword(current_encoder_address, 0x07, 0x00000000);
                 }
-                xbox_smbus_output_dword(current_encoder_address, 0x09, 0x00000000);
+                smbus_output_dword(current_encoder_address, 0x09, 0x00000000);
             }
 
             // ?
-            xbox_smbus_input_dword(current_encoder_address, 0x00, &temp);
-            xbox_smbus_output_dword(current_encoder_address, 0x00, temp | 2);
+            smbus_input_dword(current_encoder_address, 0x00, &temp);
+            smbus_output_dword(current_encoder_address, 0x00, temp | 2);
 
             // ?
-            xbox_smbus_output_dword(current_encoder_address, 0x0C, 0x0000000F);
-            xbox_smbus_output_dword(current_encoder_address, 0x0D, 0x00000000);
-            xbox_smbus_output_dword(current_encoder_address, 0x0E, 0x00000001);
+            smbus_output_dword(current_encoder_address, 0x0C, 0x0000000F);
+            smbus_output_dword(current_encoder_address, 0x0D, 0x00000000);
+            smbus_output_dword(current_encoder_address, 0x0E, 0x00000001);
 
             break;
         case XBOX_SMBUS_ADDRESS_ENCODER_CONEXANT:
@@ -182,11 +182,11 @@ void xbox_encoder_configure(uint32_t mode_coding, display_information_t *display
             // For the most part, xbox doesnt write to focus in words, but two bytes separately.
             // Probably not necessary to do this, but it's more accurate to the original code.
             #define FOCUS_OUTPUT_WORD(reg, value) \
-                xbox_smbus_output_byte(current_encoder_address, reg, (uint8_t)((value) & 0xFF)); \
-                xbox_smbus_output_byte(current_encoder_address, reg + 1, (uint8_t)((value) >> 8));
+                smbus_output_byte(current_encoder_address, reg, (uint8_t)((value) & 0xFF)); \
+                smbus_output_byte(current_encoder_address, reg + 1, (uint8_t)((value) >> 8));
 
             #define FOCUS_OUTPUT_BYTE(reg, value) \
-                xbox_smbus_output_byte(current_encoder_address, reg, value);
+                smbus_output_byte(current_encoder_address, reg, value);
 
             #define ED_HD_HDI(a, b, c) \
                 ((is_hd_interlaced) ? c : (is_hd) ? b : a)
@@ -455,7 +455,7 @@ void xbox_encoder_configure(uint32_t mode_coding, display_information_t *display
                                                    {0xA5, 0x00}, {0xA6, 0x1D}, {0xA7, 0x00}, {0xA8, 0xA0}, {0xA9, 0x00},
                                                    {0xAA, 0xDB}, {0xAB, 0x00}, {0xAC, 0x7E}, {0xAD, 0x00}};
                 for (uint8_t i = 0; i < sizeof(scart_enable) / 2; i++) {
-                    xbox_smbus_input_byte(current_encoder_address, scart_enable[i][0], (uint8_t *)&temp);
+                    smbus_input_byte(current_encoder_address, scart_enable[i][0], (uint8_t *)&temp);
                     FOCUS_OUTPUT_BYTE(scart_enable[i][0], scart_enable[i][1]);
                 }
             }

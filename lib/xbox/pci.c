@@ -146,11 +146,11 @@ void xbox_pci_init(void)
     pci_io_output_byte(PCI_XBOX_SYSTEM_BUS, PCI_HOSTBRIDGE_DEVICE_ID, PCI_HOSTBRIDGE_FUNCTION_ID, 0x87, 0x03);
 
     //?
-    xbox_smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x1b, 0x04); // unknown
-    //xbox_smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x0b, 0x01); // Audio Mute
-    xbox_smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x19, 0x01); // no reset on eject
-    xbox_smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x1a, 0x01); // unknown, done immediately after reading out eeprom data
-    xbox_smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x0b, 0x00); // Allow audio
+    smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x1b, 0x04); // unknown
+    //smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x0b, 0x01); // Audio Mute
+    smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x19, 0x01); // no reset on eject
+    smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x1a, 0x01); // unknown, done immediately after reading out eeprom data
+    smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x0b, 0x00); // Allow audio
 
     //? Seen later in booting into msdash
     value = pci_io_input_dword(PCI_XBOX_GPU_BUS, PCI_GPU_DEVICE_ID, PCI_GPU_FUNCTION_ID, 0x0000004c);

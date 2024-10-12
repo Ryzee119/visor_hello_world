@@ -63,6 +63,7 @@
         "freertos_irq.h": "c",
         "xinput_host.h": "c",
         "stdlib.h": "c",
-        "diskio.h": "c"
+        "diskio.h": "c",
+        "io.h": "c"
     }
 }

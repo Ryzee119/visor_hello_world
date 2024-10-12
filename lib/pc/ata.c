@@ -622,7 +622,7 @@ int8_t ide_bus_init(uint16_t busmaster_base, uint16_t ctrl_base, uint16_t io_bas
             uint8_t atapi_command_buffer[ATAPI_CMD_SIZE];
             printf("[ATAPI] Device found on %d\n", i);
 
-            // Temporarily set the sector size to 8 bytes
+            // Temporarily set the sector size to 8 bytes because we don't know the real size yet
             ide_device->sector_size = 8;
 
             memset(atapi_command_buffer, 0, ATAPI_CMD_SIZE);

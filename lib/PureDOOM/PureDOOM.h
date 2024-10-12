@@ -7526,6 +7526,9 @@ void doom_set_getenv(doom_getenv_fn getenv_fn)
 fixed_t finetangent[FINEANGLES / 2];
 fixed_t finesine[5 * FINEANGLES / 4];
 angle_t tantoangle[SLOPERANGE + 1];
+void dooom_set_volume(int volume);
+void dooom_stop_song(void);
+void dooom_changing_music(void *data, int looping);
 void doom_init(int argc, char** argv, int flags)
 {
     //if (!doom_print) doom_print = doom_print_impl;
@@ -16087,6 +16090,7 @@ void I_StopSong(int handle)
     mus_playing = false;
 
     reset_all_channels();
+    dooom_stop_song();
 }
 
 
@@ -41468,6 +41472,7 @@ void S_SetMusicVolume(int volume)
     I_SetMusicVolume(127);
     I_SetMusicVolume(volume);
     snd_MusicVolume = volume;
+    dooom_set_volume(volume);
 }
 
 
@@ -41533,6 +41538,7 @@ void S_ChangeMusic(int musicnum, int looping)
     I_PlaySong(music->handle, looping);
 
     mus_playing_s_sound = music;
+    dooom_changing_music(music->data, looping);
 }
 
 

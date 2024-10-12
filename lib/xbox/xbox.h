@@ -19,6 +19,7 @@
 #include <pc/pci_io.h>
 #include <pc/pic8259.h>
 #include <pc/pit8254.h>
+#include <pc/smbus.h>
 
 #include "audio.h"
 #include "eeprom.h"
@@ -26,7 +27,6 @@
 #include "led.h"
 #include "pci.h"
 #include "serial.h"
-#include "smbus.h"
 #include "timer.h"
 #include "video.h"
 

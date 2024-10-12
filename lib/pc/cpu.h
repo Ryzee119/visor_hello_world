@@ -69,8 +69,6 @@ static inline __attribute__((always_inline)) void cpu_read_cpuid(uint32_t code, 
     __asm__ volatile("cpuid" : "=a"(*eax), "=b"(*ebx), "=c"(*ecx), "=d"(*edx) : "a"(code));
 }
 
-void system_yield(uint32_t ms);
-
 static inline __attribute__((always_inline)) void cpu_read_msr64(uint32_t msr, uint64_t *p)
 {
     uint32_t __lo, __hi;
@@ -84,5 +82,7 @@ static inline __attribute__((always_inline)) void cpu_write_msr64(uint32_t msr, 
     uint32_t __hi = (uint32_t)((v) >> 32);
     cpu_write_msr(msr, __lo, __hi);
 }
+
+void system_yield(uint32_t ms);
 
 #endif // IA32_CPU_H
