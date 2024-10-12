@@ -15,8 +15,6 @@ def print_memory_usage(elf_path):
             sh_size = section['sh_size']
             sh_flags = section['sh_flags']
             sh_type = section['sh_type']
-            #sh_link = section['sh_link']
-            #sh_info = section['sh_info']
 
             if sh_type == 'SHT_PROGBITS' and not sh_flags & 0x8:  # SHF_ALLOC flag
                 memory_usage += sh_size

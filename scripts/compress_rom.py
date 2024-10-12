@@ -7,6 +7,7 @@ def compress_rom(input_file, output_file):
     original_data = bytearray()
 
     # Open the ELF file and extract the sections .text, .data, and .rodata and push into original_data array
+    # to compress as one blob
     with open(input_file, 'rb') as f:
         elf = ELFFile(f)
         sections_to_extract = ['.text', '.data', '.rodata']
