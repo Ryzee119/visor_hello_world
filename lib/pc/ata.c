@@ -101,7 +101,7 @@ static void ata_bus_reset(ata_bus_t *ata_bus)
 
     system_yield(2);
 
-    ata_busy_wait(ata_bus, ATA_BSY_TIMEOUT);
+    ata_data_wait(ata_bus);
 
     // On reset, drive is reset to master automatically, but set it explicitly
     outb(ata_bus->io_base + ATA_IO_DRIVE, ATA_IO_DRIVE_SELECT_0);
@@ -142,7 +142,7 @@ static int8_t ata_send_command(ata_bus_t *ata_bus, uint8_t device_index, ata_com
     // Select the drive, if changed wait for it to be ready
     outb(ata_bus->io_base + ATA_IO_DRIVE, drive_base);
     if ((old_drive_base ^ drive_base) & (1 << 4)) {
-        error = ata_busy_wait(ata_bus, ATA_BSY_TIMEOUT);
+        error = ata_data_wait(ata_bus);
         if (error) {
             return error;
         }
@@ -410,7 +410,7 @@ int8_t ata_pio_transfer(ata_bus_t *ata_bus, uint8_t device_index, ata_command_t 
         }
     }
 
-    error = ata_busy_wait(ata_bus, ATA_BSY_TIMEOUT);
+    error = ata_data_wait(ata_bus);
     if (error) {
         goto bail_out;
     }
@@ -418,7 +418,7 @@ int8_t ata_pio_transfer(ata_bus_t *ata_bus, uint8_t device_index, ata_command_t 
     // Flush the cache on writes
     if (!read) {
         outb(ata_bus->io_base + ATA_IO_COMMAND, ATA_CMD_FLUSH_CACHE);
-        ata_busy_wait(ata_bus, ATA_BSY_TIMEOUT);
+        ata_data_wait(ata_bus);
     }
 
 bail_out:
@@ -473,7 +473,7 @@ int8_t atapi_pio_transfer(ata_bus_t *ata_bus, uint8_t device_index, uint8_t atap
     // Flush the cache on writes
     if (!read) {
         outb(ata_bus->io_base + ATA_IO_COMMAND, ATA_CMD_FLUSH_CACHE);
-        ata_busy_wait(ata_bus, ATA_BSY_TIMEOUT);
+        ata_data_wait(ata_bus);
     }
 
 bail_out:
@@ -488,6 +488,8 @@ int8_t ide_bus_init(uint16_t busmaster_base, uint16_t ctrl_base, uint16_t io_bas
 {
     uint8_t status;
     int8_t error;
+
+    memset(ata_bus, 0, sizeof(ata_bus_t));
     ata_bus->ctrl_base = ctrl_base;
     ata_bus->io_base = io_base;
     ata_bus->busmaster_base = busmaster_base;
@@ -497,11 +499,6 @@ int8_t ide_bus_init(uint16_t busmaster_base, uint16_t ctrl_base, uint16_t io_bas
     if (status == 0xFF) {
         return -1;
     }
-
-    // IoOutputByte(0xff60+0, 0x00); // stop bus mastering
-    // IoOutputByte(0xff60+2, 0x62); // DMA possible for both drives
-    outb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_COMMAND_REG, 0x00);
-    outb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_STATUS_REG, 0x62);
 
     ata_bus_reset(ata_bus);
 
@@ -607,14 +604,16 @@ int8_t ide_bus_init(uint16_t busmaster_base, uint16_t ctrl_base, uint16_t io_bas
         ata_set_irq_en(ata_bus, 1);
 
 #if (1)
-        printf("\n[ATA] Mode: %s\n", ide_device->model);
-        printf("[ATA] Serial: %s\n", ide_device->serial);
-        printf("[ATA] Firmware: %s\n", ide_device->firmware);
-        printf("[ATA] LBA28 Sectors: %d\n", ide_device->ata.total_sector_count_lba28);
-        printf("[ATA] LBA48 Sectors: %llu\n", ide_device->ata.total_sector_count_lba48);
-        // printf("[ATA] Wire80: %d\n", ata_bus->wire80);
-        printf("[ATA] Supported UDMA: %d\n", ide_device->supported_udma_mode);
-        printf("[ATA] Actual UDMA: %d\n", ide_device->actual_udma_mode);
+        if (ide_device->is_present) {
+            printf("\n[ATA] Mode: %s\n", ide_device->model);
+            printf("[ATA] Serial: %s\n", ide_device->serial);
+            printf("[ATA] Firmware: %s\n", ide_device->firmware);
+            printf("[ATA] LBA28 Sectors: %d\n", ide_device->ata.total_sector_count_lba28);
+            printf("[ATA] LBA48 Sectors: %llu\n", ide_device->ata.total_sector_count_lba48);
+            // printf("[ATA] Wire80: %d\n", ata_bus->wire80);
+            printf("[ATA] Supported UDMA: %d\n", ide_device->supported_udma_mode);
+            printf("[ATA] Actual UDMA: %d\n", ide_device->actual_udma_mode);
+        }
 #endif
 
         if (ide_device->is_atapi) {

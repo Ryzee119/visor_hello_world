@@ -2,6 +2,10 @@
 
 void main(void);
 
+// Sectiosn marked __attribute__((section(".boot_code"))) are not compressed in the ROM image
+// This is used for code that must run before the decompressor is initialized and is useful for code that must
+// run very quickly after boot, such as the SMC challenge/response
+
 __attribute__((section(".boot_code"))) static void smc_io(uint8_t command, uint8_t read, void *data)
 {
     uint8_t *data8 = (uint8_t *)data;
@@ -105,7 +109,7 @@ __attribute__((section(".boot_code"))) void *boot_memmove(void *dest, const void
 #define LZ4_memmove(dst, src, size) boot_memmove((dst), (src), (size))
 #define LZ4_memcpy(dst, src, size) boot_memcpy((dst), (src), (size))
 #define LZ4_memset(p, v, s) boot_memset((p), (v), (s))
-#define LZ4_FORCE_O2                __attribute__((section(".boot_code")))
+#define LZ4_FORCE_O2 __attribute__((section(".boot_code")))
 __attribute__((section(".boot_code"))) void *lz4_error_memory_allocation_is_disabled(void)
 {
     return NULL;

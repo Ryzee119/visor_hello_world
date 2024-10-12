@@ -8,6 +8,8 @@ def print_memory_usage(elf_path):
         memory_usage = 0
         heap_size = 0
         stack_size = 0
+        boot_size = 0
+        ram_usage = 0
         
         for section in elf.iter_sections():
             sh_size = section['sh_size']
@@ -19,14 +21,22 @@ def print_memory_usage(elf_path):
             if sh_type == 'SHT_PROGBITS' and not sh_flags & 0x8:  # SHF_ALLOC flag
                 memory_usage += sh_size
 
-            if '.heap' in section.name:
+            elif '.heap' in section.name:
                 heap_size += sh_size
 
-            if '.stack' in section.name:
+            elif '.stack' in section.name:
                 stack_size += sh_size
+
+            elif '.boot_code' in section.name:
+                boot_size += sh_size
+
+            elif '.bss' in section.name:
+                ram_usage += sh_size
 
         print(f"Heap Memory: {round(heap_size/1024/1024, 3)} MB")
         print(f"Stack Memory: {round(stack_size)} bytes")
+        print(f"Boot Code Size: {round(boot_size)} bytes")
+        print(f"RAM Usage: {round(ram_usage/1024/1024, 3)} MB")
 
         memory_usage_kb = memory_usage/1024
         memory_percent = memory_usage_kb/256           

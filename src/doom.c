@@ -179,6 +179,7 @@ int doom_entry(const char *wad_path)
     uint32_t *final_screen_buffer = pvPortMalloc(640 * 480 * 4);
     final_screen_buffer = (uint32_t *)(0xF0000000 | (intptr_t)final_screen_buffer);
     while (1) {
+        uint32_t start_ticks = xTaskGetTickCount();
         doom_mouse_move(doom_rightx / 256, 0);
         xSemaphoreTake(doom_logic_mutex, portMAX_DELAY);
         doom_update();
@@ -207,7 +208,7 @@ int doom_entry(const char *wad_path)
         }
 
         xbox_video_set_option(XBOX_VIDEO_OPTION_FRAMEBUFFER, final_screen_buffer);
-        taskYIELD();
+        xTaskDelayUntil(&start_ticks, pdMS_TO_TICKS(1000 / 35));
     }
     return 0;
 }

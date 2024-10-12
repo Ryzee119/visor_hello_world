@@ -58,7 +58,7 @@ static void freertos_entry(void *parameters)
     (void)parameters;
     printf("FreeRTOS entry\n");
 
-    xbox_led_output(XLED_ORANGE, XLED_RED, XLED_RED, XLED_RED);
+    xbox_led_output(XLED_RED, XLED_RED, XLED_RED, XLED_RED);
 
     // FreeRTOS x86 port uses the LAPIC timer. This must be used in-conjunction with the IOAPIC interrupt controller.
     // Although the xbox should have both of these peripherals, I could not get the IOAPIC to work. I suspect there is
@@ -77,13 +77,13 @@ static void freertos_entry(void *parameters)
     display_init();
     interrupts_init();
     usb_init();
-
-#if (0)
     ide_bus_init(XBOX_ATA_BUSMASTER_BASE, XBOX_ATA_PRIMARY_BUS_CTRL_BASE, XBOX_ATA_PRIMARY_BUS_IO_BASE, &ata_bus);
+#if (1)
     uint8_t *sector_buffer = pvPortMalloc(ATA_SECTOR_SIZE * 4096);
     //aligned to 4096 bites
     sector_buffer = (uint8_t *)(((uint32_t)sector_buffer + 4095) & ~4095);
-    int8_t error = ide_dma_read(&ata_bus, 0, 3, sector_buffer, 1);
+    printf_r("[ATA] Reading sector 0\n");
+    int8_t error = ide_pio_read(&ata_bus, 0, 3, sector_buffer, 1);
     if (error) {
         printf_r("[ATA] Error reading sector 0\n");
     } else {
@@ -94,6 +94,7 @@ static void freertos_entry(void *parameters)
         printf_r("\n");
     }
 #endif 
+    vTaskDelay(pdMS_TO_TICKS(10000));
     cpuid_eax_01 cpuid_info;
     cpu_read_cpuid(CPUID_VERSION_INFO, &cpuid_info.eax.flags, &cpuid_info.ebx.flags, &cpuid_info.ecx.flags,
                    &cpuid_info.edx.flags);

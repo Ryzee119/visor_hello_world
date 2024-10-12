@@ -98,7 +98,7 @@ void doom_sound_task(void *parameters)
 
         // Mix the midi buffer with the audio buffer
         for (uint16_t i = 0; i < 2048; i++) {
-            int32_t mixed = (int32_t)in_buffer[i] + (int32_t)midi_buffer[i];
+            int32_t mixed = (int32_t)in_buffer[i] + ((int32_t)midi_buffer[i] << 2);
             if (mixed > 32767) {
                 mixed = 32767;
             } else if (mixed < -32768) {
