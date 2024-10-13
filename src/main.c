@@ -87,17 +87,30 @@ static void freertos_entry(void *parameters)
     uint8_t *sector_buffer = pvPortMalloc(ATA_SECTOR_SIZE * 4096);
     //aligned to 4096 bites
     sector_buffer = (uint8_t *)(((uint32_t)sector_buffer + 4095) & ~4095);
-    printf_r("[ATA] Reading DMA sector 0\n");
+    printf_r("\n[IDE] DMA Read read sector 3 of device 0\n");
     int8_t error = ide_dma_read(&ata_bus, 0, 3, sector_buffer, 1);
     if (error) {
-        printf_r("[ATA] Error reading sector 0\n");
+        printf_r("[IDE] Error reading sector 0\n");
     } else {
-        printf_r("[ATA] Sector 0: %p\n", sector_buffer);
         for (uint32_t i = 0; i < 8; i++) {
             printf_r("%02x", sector_buffer[i]);
         }
         printf_r("\n");
     }
+
+    printf_r("\n[IDE] DMA Read read sector %d of device 1\n", 0x8000/2048);
+    memset(sector_buffer, 0, ATAPI_SECTOR_SIZE);
+    error = ide_dma_read(&ata_bus, 1, 0x8000/ATAPI_SECTOR_SIZE, sector_buffer, 1);
+    if (error) {
+        printf_r("[IDE] Error reading sector 0\n");
+    } else {
+        for (uint32_t i = 0; i < 8; i++) {
+            printf_r("%02x", sector_buffer[i]);
+        }
+        printf_r("\n");
+    }
+
+
 #endif 
     cpuid_eax_01 cpuid_info;
     cpu_read_cpuid(CPUID_VERSION_INFO, &cpuid_info.eax.flags, &cpuid_info.ebx.flags, &cpuid_info.ecx.flags,

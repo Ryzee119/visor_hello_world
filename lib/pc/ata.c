@@ -98,7 +98,6 @@ static int8_t ata_send_command(ata_bus_t *ata_bus, uint8_t device_index, ata_com
     const uint8_t old_drive_base = inb(ata_bus->io_base + ATA_IO_DRIVE);
     const uint8_t is_lba28 = ATA_CMD_IS_LBA28(ata_command->command);
     const uint8_t is_lba48 = ATA_CMD_IS_LBA48(ata_command->command);
-    const uint64_t lba = BSWAP_LE64(ata_command->lba); // Function assumes LE
     int8_t error = 0;
 
     // Make sure the index is valid
@@ -109,7 +108,7 @@ static int8_t ata_send_command(ata_bus_t *ata_bus, uint8_t device_index, ata_com
     if (is_lba28 || is_lba48) {
         drive_base |= ATA_IO_DRIVE_SELECT_LBA_MASK;
         if (is_lba28) {
-            drive_base |= (lba >> 24) & 0x0F;
+            drive_base |= (ata_command->lba >> 24) & 0x0F;
         }
     }
 
@@ -125,9 +124,9 @@ static int8_t ata_send_command(ata_bus_t *ata_bus, uint8_t device_index, ata_com
     if (is_lba48) {
         outb(ata_bus->io_base + ATA_IO_FEATURES, 0);
         outb(ata_bus->io_base + ATA_IO_SECTOR_COUNT, (uint8_t)(ata_command->sector_count >> 8) & 0xFF);
-        outb(ata_bus->io_base + ATA_IO_LBA_LOW, (uint8_t)((lba >> 24) & 0xFF));
-        outb(ata_bus->io_base + ATA_IO_LBA_MID, (uint8_t)((lba >> 32) & 0xFF));
-        outb(ata_bus->io_base + ATA_IO_LBA_HIGH, (uint8_t)((lba >> 40) & 0xFF));
+        outb(ata_bus->io_base + ATA_IO_LBA_LOW, (uint8_t)((ata_command->lba >> 24) & 0xFF));
+        outb(ata_bus->io_base + ATA_IO_LBA_MID, (uint8_t)((ata_command->lba >> 32) & 0xFF));
+        outb(ata_bus->io_base + ATA_IO_LBA_HIGH, (uint8_t)((ata_command->lba >> 40) & 0xFF));
     }
 
 #if (0)
@@ -142,9 +141,9 @@ static int8_t ata_send_command(ata_bus_t *ata_bus, uint8_t device_index, ata_com
 
     outb(ata_bus->io_base + ATA_IO_FEATURES, ata_command->feature);
     outb(ata_bus->io_base + ATA_IO_SECTOR_COUNT, ata_command->sector_count & 0xFF);
-    outb(ata_bus->io_base + ATA_IO_LBA_LOW, (uint8_t)((lba >> 0) & 0xFF));
-    outb(ata_bus->io_base + ATA_IO_LBA_MID, (uint8_t)((lba >> 8) & 0xFF));
-    outb(ata_bus->io_base + ATA_IO_LBA_HIGH, (uint8_t)((lba >> 16) & 0xFF));
+    outb(ata_bus->io_base + ATA_IO_LBA_LOW, (uint8_t)((ata_command->lba >> 0) & 0xFF));
+    outb(ata_bus->io_base + ATA_IO_LBA_MID, (uint8_t)((ata_command->lba >> 8) & 0xFF));
+    outb(ata_bus->io_base + ATA_IO_LBA_HIGH, (uint8_t)((ata_command->lba >> 16) & 0xFF));
 
     outb(ata_bus->io_base + ATA_IO_COMMAND, ata_command->command);
     ata_io_400ns(ata_bus);
@@ -156,7 +155,8 @@ static int8_t ata_send_command(ata_bus_t *ata_bus, uint8_t device_index, ata_com
     return ata_busy_wait(ata_bus);
 }
 
-static int8_t atapi_send_command(ata_bus_t *ata_bus, uint8_t device_index, ata_command_t *ata_command, uint8_t atapi_command[ATAPI_CMD_SIZE])
+static int8_t atapi_send_command(ata_bus_t *ata_bus, uint8_t device_index, ata_command_t *ata_command,
+                                 uint8_t atapi_command[ATAPI_CMD_SIZE])
 {
     const ide_device_t *ide_device = (device_index == 0) ? &ata_bus->master : &ata_bus->slave;
     int8_t error = 0;
@@ -187,7 +187,61 @@ bail_out:
     return error;
 }
 
-static int8_t atapi_dma_transfer(ata_bus_t *ata_bus, uint8_t device_index, atapi_read12_cmd_t *atapi_command, uint8_t read, void *buffer)
+static int8_t busmaster_dma_transfer(ata_bus_t *ata_bus, void *buffer, uint8_t read, uint32_t bytes_to_transfer)
+{
+    int8_t error = 0;
+
+    // Set up the PRD Table
+    static struct prd_entry prd_table[1];
+    prd_table[0].base_addr = (uint32_t)system_get_physical_address(buffer);
+    prd_table[0].byte_count = bytes_to_transfer;
+    prd_table[0].flags = 0x8000;
+    outl(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_PRDT_ADDRESS, (uint32_t)prd_table);
+
+    // Reset the busmaster controller
+    outb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_COMMAND, 0x00);
+
+    // Clear error & interrupt flags
+    outb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_STATUS,
+         ATA_BUSMASTER_DMA_STATUS_INTERRUPT | ATA_BUSMASTER_DMA_STATUS_ERROR);
+
+    // Start the DMA transfer
+    uint8_t command =((read) ? ATA_BUSMASTER_DMA_COMMAND_READ : ATA_BUSMASTER_DMA_COMMAND_WRITE) | ATA_BUSMASTER_DMA_COMMAND_START;
+    outb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_COMMAND, command);
+
+    // Wait for the transfer to complete (timeout 5s + 100ms per MB)
+    uint32_t timeout = 5000 + (bytes_to_transfer / 1024) * 100;
+    while (timeout--) {
+        uint8_t dma_status = inb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_STATUS);
+        uint8_t device_status = inb(ata_bus->io_base + ATA_CTRL_ALT_STATUS);
+        if (!(dma_status & ATA_BUSMASTER_DMA_STATUS_ACTIVE)) {
+            break;
+        }
+        system_yield(1);
+    }
+
+    if (timeout == 0) {
+        error = -1;
+    }
+
+    // Stop the DMA transfer
+    outb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_COMMAND, 0);
+
+    // Check for errors
+    error = inb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_STATUS) & ATA_BUSMASTER_DMA_STATUS_ERROR;
+    if (error) {
+        error = -1;
+    }
+
+    // Clear the interrupt flag and error flag
+    outb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_STATUS,
+         ATA_BUSMASTER_DMA_STATUS_INTERRUPT | ATA_BUSMASTER_DMA_STATUS_ERROR);
+
+    return error;
+}
+
+static int8_t atapi_dma_transfer(ata_bus_t *ata_bus, uint8_t device_index, atapi_read12_cmd_t *atapi_command,
+                                 uint8_t read, void *buffer)
 {
     const ide_device_t *ide_device = (device_index == 0) ? &ata_bus->master : &ata_bus->slave;
     if (ide_device->is_present == 0 || ide_device->is_atapi == 0) {
@@ -216,49 +270,7 @@ static int8_t atapi_dma_transfer(ata_bus_t *ata_bus, uint8_t device_index, atapi
 
     ata_set_irq_en(ata_bus, 0);
 
-    // Set up the PRD Table
-    static struct prd_entry prd_table[1];
-    prd_table[0].base_addr = (uint32_t)system_get_physical_address(buffer);
-    prd_table[0].byte_count = ide_device->sector_size * atapi_command->transfer_length;
-    prd_table[0].flags = 0x8000;
-    outl(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_PRDT_ADDRESS, (uint32_t)prd_table);
-
-    // Clear error & interrupt flags
-    outb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_STATUS,
-         ATA_BUSMASTER_DMA_STATUS_INTERRUPT | ATA_BUSMASTER_DMA_STATUS_ERROR);
-
-    // Start the DMA transfer
-    uint8_t command =
-        ATA_BUSMASTER_DMA_COMMAND_START | ((read) ? ATA_BUSMASTER_DMA_COMMAND_READ : ATA_BUSMASTER_DMA_COMMAND_WRITE);
-    outb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_COMMAND, command);
-
-    // Wait for the transfer to complete (timeout 5s + 100ms per MB)
-    uint32_t timeout = 5000 + ((atapi_command->transfer_length * ide_device->sector_size) >> 5) * 100;
-    while (timeout--) {
-        uint8_t dma_status = inb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_STATUS);
-        uint8_t device_status = inb(ata_bus->ctrl_base + ATA_CTRL_ALT_STATUS);
-        if (!(dma_status & ATA_BUSMASTER_DMA_STATUS_INTERRUPT)) {
-            continue;
-        }
-        if (!(device_status & ATA_STATUS_BSY)) {
-            break;
-            ;
-        }
-        system_yield(1);
-    }
-
-    if (timeout == 0) {
-        // stop the transfer
-        outb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_COMMAND, 0);
-        error = -1;
-    }
-
-    // Check for errors
-    error = inb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_STATUS) & ATA_BUSMASTER_DMA_STATUS_ERROR;
-
-    // Clear the interrupt flag and error flag
-    outb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_STATUS,
-         ATA_BUSMASTER_DMA_STATUS_INTERRUPT | ATA_BUSMASTER_DMA_STATUS_ERROR);
+    error = busmaster_dma_transfer(ata_bus, buffer, read, ide_device->sector_size * atapi_command->transfer_length);
 
 bail_out:
     ata_set_irq_en(ata_bus, 1);
@@ -277,9 +289,6 @@ static int8_t ata_dma_transfer(ata_bus_t *ata_bus, uint8_t device_index, ata_com
     int8_t error = 0;
     spinlock_acquire(&lock);
 
-    // Reset the busmaster controller
-    outb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_COMMAND, 0x00);
-
     // Need a start ata command to set the drive, lba, etc
     error = ata_send_command(ata_bus, device_index, ata_command);
     if (error) {
@@ -288,49 +297,7 @@ static int8_t ata_dma_transfer(ata_bus_t *ata_bus, uint8_t device_index, ata_com
 
     ata_set_irq_en(ata_bus, 0);
 
-    // Set up the PRD Table
-    static struct prd_entry prd_table[1];
-    prd_table[0].base_addr = (uint32_t)system_get_physical_address(buffer);
-    prd_table[0].byte_count = ide_device->sector_size * ata_command->sector_count;
-    prd_table[0].flags = 0x8000;
-    outl(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_PRDT_ADDRESS, (uint32_t)prd_table);
-
-    // Clear error & interrupt flags
-    outb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_STATUS,
-         ATA_BUSMASTER_DMA_STATUS_INTERRUPT | ATA_BUSMASTER_DMA_STATUS_ERROR);
-
-    // Start the DMA transfer
-    uint8_t command =
-        ATA_BUSMASTER_DMA_COMMAND_START | ((read) ? ATA_BUSMASTER_DMA_COMMAND_READ : ATA_BUSMASTER_DMA_COMMAND_WRITE);
-    outb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_COMMAND, command);
-
-    // Wait for the transfer to complete (timeout 5s + 100ms per MB)
-    uint32_t timeout = 5000 + ((ata_command->sector_count * ide_device->sector_size) >> 5) * 100;
-    while (timeout--) {
-        uint8_t dma_status = inb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_STATUS);
-        uint8_t device_status = inb(ata_bus->ctrl_base + ATA_CTRL_ALT_STATUS);
-        if (!(dma_status & ATA_BUSMASTER_DMA_STATUS_INTERRUPT)) {
-            continue;
-        }
-        if (!(device_status & ATA_STATUS_BSY)) {
-            break;
-            ;
-        }
-        system_yield(1);
-    }
-
-    if (timeout == 0) {
-        // stop the transfer
-        outb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_COMMAND, 0);
-        error = -1;
-    }
-
-    // Check for errors
-    error = inb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_STATUS) & ATA_BUSMASTER_DMA_STATUS_ERROR;
-
-    // Clear the interrupt flag and error flag
-    outb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_STATUS,
-         ATA_BUSMASTER_DMA_STATUS_INTERRUPT | ATA_BUSMASTER_DMA_STATUS_ERROR);
+    error = busmaster_dma_transfer(ata_bus, buffer, read, ide_device->sector_size * ata_command->sector_count);
 
 bail_out:
     ata_set_irq_en(ata_bus, 1);
@@ -404,9 +371,7 @@ static int8_t ide_pio_io(ata_bus_t *ata_bus, uint8_t device_index, uint8_t read,
         return ata_pio_transfer(ata_bus, device_index, &ata_command, read, buffer);
     }
 }
-#endif
 
-#if (0)
 // Send low level commands to ATA devices (HDDs). Read is 1 for read, 0 for write, if there is no data transfer, set
 // buffer to NULL
 int8_t ata_pio_transfer(ata_bus_t *ata_bus, uint8_t device_index, ata_command_t *ata_command, uint8_t read,
@@ -559,8 +524,7 @@ int8_t ide_bus_init(uint16_t busmaster_base, uint16_t ctrl_base, uint16_t io_bas
         cmd.command = ATA_CMD_IDENTIFY;
         error = ata_send_command(ata_bus, i, &cmd);
         if (error) {
-            cmd.command = ATAPI_CMD_SOFT_RESET;
-            error = ata_send_command(ata_bus, i, &cmd);
+            ide_device->sector_size = ATAPI_SECTOR_SIZE;
 
             cmd.command = ATA_CMD_PACKET_IDENTIFY;
             error = ata_send_command(ata_bus, i, &cmd);
@@ -568,8 +532,8 @@ int8_t ide_bus_init(uint16_t busmaster_base, uint16_t ctrl_base, uint16_t io_bas
                 ata_set_irq_en(ata_bus, 1);
                 continue;
             }
+
             ide_device->is_atapi = 1;
-            ide_device->sector_size = ATAPI_SECTOR_SIZE;
             ide_device->atapi.total_sector_count = 0;
         }
 
@@ -592,47 +556,44 @@ int8_t ide_bus_init(uint16_t busmaster_base, uint16_t ctrl_base, uint16_t io_bas
                 ide_device->supported_udma_mode = (wtemp & 0xFF);
             }
 
-            // 80 wire conductor information
-            else if (j == 93) {
-                // Wire80 bit only valid for the master device
-                if (i == 0) {
-                    // Bit 13 of word 93 is CBLID, it is pulled low on 80 wire conductors, otherwise high
+            if (ide_device->is_atapi == 0) {
+                // 80 wire conductor information
+                // it 13 of word 93 is CBLID, it is pulled low on 80 wire conductors, otherwise high
+                if (j == 93) {
                     if (!(wtemp & (1 << 13))) {
                         ata_bus->wire80 = 1;
+                    } else {
+                        ide_device->supported_udma_mode &= 0x03; // Restrict to UDMA 2 or less of 40 wire conductor
                     }
                 }
 
-                if (ata_bus->wire80 == 0) {
-                    ide_device->supported_udma_mode &= 0x03; // Restrict to UDMA 2 or less of 40 wire conductor
+                // LBA28 Addressing
+                else if (j == 60) {
+                    ide_device->ata.total_sector_count_lba28 = wtemp;
+                } else if (j == 61) {
+                    ide_device->ata.total_sector_count_lba28 |= wtemp << 16;
+
+                    ide_device->ata.total_sector_count_lba28 =
+                        BSWAP_LE32_TO_NATIVE(ide_device->ata.total_sector_count_lba28 + 1);
+                }
+
+                // LBA48 Addressing
+                else if (j == 100) {
+                    ide_device->ata.total_sector_count_lba48 = wtemp;
+                } else if (j == 101) {
+                    ide_device->ata.total_sector_count_lba48 |= wtemp << 16;
+                } else if (j == 102) {
+                    ide_device->ata.total_sector_count_lba48 |= (uint64_t)wtemp << 32;
+                } else if (j == 103) {
+                    ide_device->ata.total_sector_count_lba48 |= (uint64_t)wtemp << 48;
+
+                    ide_device->ata.total_sector_count_lba48 =
+                        BSWAP_LE64_TO_NATIVE(ide_device->ata.total_sector_count_lba48 + 1);
                 }
             }
 
-            // LBA28 Addressing
-            else if (j == 60) {
-                ide_device->ata.total_sector_count_lba28 = wtemp;
-            } else if (j == 61) {
-                ide_device->ata.total_sector_count_lba28 |= wtemp << 16;
-
-                ide_device->ata.total_sector_count_lba28 =
-                    BSWAP_LE32_TO_NATIVE(ide_device->ata.total_sector_count_lba28 + 1);
-            }
-
-            // LBA48 Addressing
-            else if (j == 100) {
-                ide_device->ata.total_sector_count_lba48 = wtemp;
-            } else if (j == 101) {
-                ide_device->ata.total_sector_count_lba48 |= wtemp << 16;
-            } else if (j == 102) {
-                ide_device->ata.total_sector_count_lba48 |= (uint64_t)wtemp << 32;
-            } else if (j == 103) {
-                ide_device->ata.total_sector_count_lba48 |= (uint64_t)wtemp << 48;
-
-                ide_device->ata.total_sector_count_lba48 =
-                    BSWAP_LE64_TO_NATIVE(ide_device->ata.total_sector_count_lba48 + 1);
-            }
-
             // Model, Serial, Firmware
-            else if (j >= 27 && j < 47) {
+            if (j >= 27 && j < 47) {
                 uint8_t k = (j - 27) * 2;
                 ide_device->model[k] = btemp[1];
                 ide_device->model[k + 1] = btemp[0];
@@ -657,7 +618,7 @@ int8_t ide_bus_init(uint16_t busmaster_base, uint16_t ctrl_base, uint16_t io_bas
                     break;
                 }
             }
- 
+
             outb(ata_bus->io_base + ATA_IO_FEATURES, ATA_FEATURE_SET_TRANSFER_MODE);
             outb(ata_bus->io_base + ATA_IO_SECTOR_COUNT, udma_mode);
             outb(ata_bus->io_base + ATA_IO_COMMAND, ATA_CMD_SET_FEATURES);
@@ -669,12 +630,16 @@ int8_t ide_bus_init(uint16_t busmaster_base, uint16_t ctrl_base, uint16_t io_bas
         if (ide_device->is_present) {
             printf("\n[ATA] Mode: %s\n", ide_device->model);
             printf("[ATA] Serial: %s\n", ide_device->serial);
-            printf("[ATA] Firmware: %s\n", ide_device->firmware);
-            printf("[ATA] LBA28 Sectors: %d\n", ide_device->ata.total_sector_count_lba28);
-            printf("[ATA] LBA48 Sectors: %llu\n", ide_device->ata.total_sector_count_lba48);
+            printf("[ATA] Firmware: %s\n", ide_device->firmware);            
             printf("[ATA] Wire80: %d\n", ata_bus->wire80);
             printf("[ATA] Supported UDMA: %02x\n", ide_device->supported_udma_mode);
             printf("[ATA] Selected UDMA: %02x\n", ide_device->selected_udma_mode);
+            if (ide_device->is_atapi == 0) {
+                printf("[ATA] LBA28 Sectors: %d\n", ide_device->ata.total_sector_count_lba28);
+                printf("[ATA] LBA48 Sectors: %llu\n", ide_device->ata.total_sector_count_lba48);
+            } else {
+                printf("[ATAPI] Total Sectors: %llu\n", ide_device->atapi.total_sector_count);
+            }
         }
 #endif
 
@@ -709,7 +674,6 @@ int8_t ide_bus_init(uint16_t busmaster_base, uint16_t ctrl_base, uint16_t io_bas
     ata_bus_reset(ata_bus);
     return error;
 }
-
 
 #if (0)
 int8_t ide_pio_read(ata_bus_t *ata_bus, uint8_t device_index, uint32_t lba, void *buffer, uint32_t sector_count)
