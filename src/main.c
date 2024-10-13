@@ -18,6 +18,11 @@ void system_yield(uint32_t ms)
     }
 }
 
+void *system_get_physical_address(void *virtual_address)
+{
+    return virtual_address;
+}
+
 SemaphoreHandle_t doom_mutex;
 static void doom_task(void *parameters)
 {
@@ -76,14 +81,14 @@ static void freertos_entry(void *parameters)
 
     display_init();
     interrupts_init();
-    usb_init();
+    //usb_init();
     ide_bus_init(XBOX_ATA_BUSMASTER_BASE, XBOX_ATA_PRIMARY_BUS_CTRL_BASE, XBOX_ATA_PRIMARY_BUS_IO_BASE, &ata_bus);
 #if (1)
     uint8_t *sector_buffer = pvPortMalloc(ATA_SECTOR_SIZE * 4096);
     //aligned to 4096 bites
     sector_buffer = (uint8_t *)(((uint32_t)sector_buffer + 4095) & ~4095);
-    printf_r("[ATA] Reading sector 0\n");
-    int8_t error = ide_pio_read(&ata_bus, 0, 3, sector_buffer, 1);
+    printf_r("[ATA] Reading DMA sector 0\n");
+    int8_t error = ide_dma_read(&ata_bus, 0, 3, sector_buffer, 1);
     if (error) {
         printf_r("[ATA] Error reading sector 0\n");
     } else {
@@ -94,11 +99,11 @@ static void freertos_entry(void *parameters)
         printf_r("\n");
     }
 #endif 
-    vTaskDelay(pdMS_TO_TICKS(10000));
     cpuid_eax_01 cpuid_info;
     cpu_read_cpuid(CPUID_VERSION_INFO, &cpuid_info.eax.flags, &cpuid_info.ebx.flags, &cpuid_info.ecx.flags,
                    &cpuid_info.edx.flags);
 
+#if (0)
     printf_r("[CPU] Family: %d\n", cpuid_info.eax.family_id);
     printf_r("[CPU] Model: %d\n", cpuid_info.eax.model);
     printf_r("[CPU] Stepping: %d\n", cpuid_info.eax.stepping_id);
@@ -107,12 +112,13 @@ static void freertos_entry(void *parameters)
     printf_r("[CPU] Extended Model: %d\n", cpuid_info.eax.extended_model_id);
     printf_r("[CPU] Feature Bits (EDX): 0x%08x\n", cpuid_info.edx.flags);
     printf_r("[CPU] Feature Bits (ECX): 0x%08x\n", cpuid_info.ecx.flags);
+#endif
 
     uint8_t temp1, temp2;
     smbus_input_byte(XBOX_SMBUS_ADDRESS_TEMP, 0x00, &temp1);
     smbus_input_byte(XBOX_SMBUS_ADDRESS_TEMP, 0x01, &temp2);
-    printf_r("[SYS] CPU: %d C\n", temp1);
-    printf_r("[SYS] MB: %d C\n", temp2);
+    //printf_r("[SYS] CPU: %d C\n", temp1);
+    //printf_r("[SYS] MB: %d C\n", temp2);
 
     xbox_led_output(XLED_GREEN, XLED_GREEN, XLED_GREEN, XLED_GREEN);
 

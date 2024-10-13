@@ -3,12 +3,12 @@
 #ifndef ATA_H
 #define ATA_H
 
-#include <stdint.h>
 #include "lock.h"
+#include <stdint.h>
 
-#define ATA_BUSMASTER_DMA_COMMAND_REG 0x00
-#define ATA_BUSMASTER_DMA_STATUS_REG  0x02
-#define ATA_BUSMASTER_DMA_PRDT_REG    0x04
+#define ATA_BUSMASTER_DMA_COMMAND      0x00
+#define ATA_BUSMASTER_DMA_STATUS       0x02
+#define ATA_BUSMASTER_DMA_PRDT_ADDRESS 0x04
 
 #define ATA_BUSMASTER_DMA_COMMAND_START (1 << 0)
 #define ATA_BUSMASTER_DMA_COMMAND_READ  (1 << 3)
@@ -29,7 +29,7 @@
 #define ATA_IO_STATUS       7
 
 #define ATA_IO_DRIVE_SELECT_LBA_MASK 0x40
-#define ATA_IO_DRIVE_SELECT_0 0xA0
+#define ATA_IO_DRIVE_SELECT_0        0xA0
 
 #define ATA_CTRL_HOB            (1 << 3)
 #define ATA_CTRL_SOFTWARE_RESET (1 << 2)
@@ -50,12 +50,21 @@
 
 #define ATA_CMD_IS_LBA48(cmd) (cmd == 0x25 || cmd == 0x35 || cmd == 0x24 || cmd == 0x34)
 #define ATA_CMD_IS_LBA28(cmd) (cmd == 0xC8 || cmd == 0xCA || cmd == 0x20 || cmd == 0x30)
-#define ATA_CMD_IS_LBA(cmd) (ATA_CMD_IS_LBA28(cmd) || ATA_CMD_IS_LBA48(cmd))
+#define ATA_CMD_IS_LBA(cmd)   (ATA_CMD_IS_LBA28(cmd) || ATA_CMD_IS_LBA48(cmd))
 
 #define ATA_CMD_FLUSH_CACHE     0xE7
 #define ATA_CMD_IDENTIFY        0xEC
 #define ATA_CMD_PACKET_IDENTIFY 0xA1
 #define ATA_CMD_PACKET          0xA0
+#define ATA_CMD_SET_FEATURES    0xEF
+
+#define ATA_FEATURE_DMA 0x01
+#define ATA_FEATURE_SET_TRANSFER_MODE  0x03
+#define ATA_TRANSFER_MODE_PIO          0x00
+#define ATA_TRANSFER_MODE_PIO_NO_IORDY 0x01
+#define ATA_TRANSFER_MODE_PIO_MODE_3   0x0B
+#define ATA_TRANSFER_MODE_PIO_MODE_4   0x0C
+#define ATA_TRANSFER_MODE_UDMA         0x40 // Or with the mode number
 
 #define ATA_STATUS_ERR (1 << 0) // Indicates an error occurred. Send a new command to clear it
 #define ATA_STATUS_DRQ (1 << 3) // Set when the drive has PIO data to transfer, or is ready to accept PIO data.
@@ -87,22 +96,25 @@ typedef struct ata_command
 
 typedef struct ide_device
 {
-    uint8_t is_present;
-    uint8_t is_atapi;
+    uint8_t is_present : 1;
+    uint8_t is_atapi : 1;
+    uint8_t reserved : 6;
     uint8_t supported_udma_mode;
-    uint8_t actual_udma_mode;
+    uint8_t selected_udma_mode;
     uint16_t sector_size;
 
-    union {
-        struct {
-            uint8_t lba48_supported;
+    union
+    {
+        struct
+        {
             uint32_t total_sector_count_lba28;
             uint64_t total_sector_count_lba48;
         } ata;
 
-        struct {
+        struct
+        {
             uint64_t total_sector_count;
-            uint8_t reserved[5];
+            uint8_t reserved[2];
         } atapi;
     };
 
@@ -113,9 +125,8 @@ typedef struct ide_device
 
 typedef struct ata_bus
 {
-    uint8_t present_mask : 2;
     uint8_t wire80 : 1;
-    uint8_t reserved : 5;
+    uint8_t reserved : 7;
 
     uint16_t ctrl_base;
     uint16_t io_base;
@@ -137,6 +148,8 @@ int8_t ide_dma_write(ata_bus_t *ata_bus, uint8_t device_index, uint32_t lba, voi
 // Low level functions for ATA/ATAPI devices
 // If the command reads data from the device, set read to 1, otherwise 0
 // If not data is being transferred, set buffer to NULL, read and sector_count are ignored
-int8_t ata_pio_transfer(ata_bus_t *ata_bus, uint8_t device_index, ata_command_t *ata_command, uint8_t read, void *buffer);
-int8_t atapi_pio_transfer(ata_bus_t *ata_bus, uint8_t device_index, uint8_t atapi_command[12], uint8_t read, void *buffer, uint32_t sector_count);
+int8_t ata_pio_transfer(ata_bus_t *ata_bus, uint8_t device_index, ata_command_t *ata_command, uint8_t read,
+                        void *buffer);
+int8_t atapi_pio_transfer(ata_bus_t *ata_bus, uint8_t device_index, uint8_t atapi_command[12], uint8_t read,
+                          void *buffer, uint32_t sector_count);
 #endif // ATA_H
