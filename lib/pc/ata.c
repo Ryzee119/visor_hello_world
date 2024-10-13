@@ -192,10 +192,10 @@ static int8_t busmaster_dma_transfer(ata_bus_t *ata_bus, void *buffer, uint8_t r
     int8_t error = 0;
 
     // Set up the PRD Table
-    static struct prd_entry prd_table[1];
+    static struct prd_entry prd_table[1]; //FIXME, allow more than 1 PRD?
     prd_table[0].base_addr = (uint32_t)system_get_physical_address(buffer);
     prd_table[0].byte_count = bytes_to_transfer;
-    prd_table[0].flags = 0x8000;
+    prd_table[0].flags = 0x8000; // Set MSB to indicate the last entry
     outl(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_PRDT_ADDRESS, (uint32_t)prd_table);
 
     // Reset the busmaster controller
@@ -213,24 +213,23 @@ static int8_t busmaster_dma_transfer(ata_bus_t *ata_bus, void *buffer, uint8_t r
     uint32_t timeout = 5000 + (bytes_to_transfer / 1024) * 100;
     while (timeout--) {
         uint8_t dma_status = inb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_STATUS);
-        uint8_t device_status = inb(ata_bus->io_base + ATA_CTRL_ALT_STATUS);
         if (!(dma_status & ATA_BUSMASTER_DMA_STATUS_ACTIVE)) {
             break;
         }
         system_yield(1);
     }
 
+    // Make sure the DMA transfer is stopped
+    outb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_COMMAND, 0);
+    
+    // Check for timeout or transfer errors
+    uint8_t dma_status = inb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_STATUS);
     if (timeout == 0) {
         error = -1;
-    }
-
-    // Stop the DMA transfer
-    outb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_COMMAND, 0);
-
-    // Check for errors
-    error = inb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_STATUS) & ATA_BUSMASTER_DMA_STATUS_ERROR;
-    if (error) {
-        error = -1;
+    } else {
+        if (dma_status & ATA_BUSMASTER_DMA_STATUS_ERROR) {
+            error = -1;
+        }
     }
 
     // Clear the interrupt flag and error flag
@@ -337,160 +336,6 @@ static int8_t ide_dma_io(ata_bus_t *ata_bus, uint8_t device_index, uint8_t read,
         return ata_dma_transfer(ata_bus, device_index, &ata_command, read, buffer);
     }
 }
-
-#if (0)
-static int8_t ide_pio_io(ata_bus_t *ata_bus, uint8_t device_index, uint8_t read, uint32_t lba, void *buffer,
-                         uint32_t sector_count)
-{
-    const ide_device_t *ide_device = (device_index == 0) ? &ata_bus->master : &ata_bus->slave;
-    if (ide_device->is_present == 0) {
-        return -1;
-    }
-
-    if (ide_device->is_atapi) {
-        atapi_read12_cmd_t atapi_command = {
-            .opcode = (read) ? ATAPI_CMD_READ_12 : ATAPI_CMD_WRITE_12,
-            .lba = BSWAP_BE32(lba),
-            .transfer_length = BSWAP_BE32(sector_count),
-            .control = 0,
-            .flags = 0,
-            .reserved_10 = 0,
-        };
-        return atapi_pio_transfer(ata_bus, device_index, (uint8_t *)&atapi_command, read, buffer, sector_count);
-    } else {
-        ata_command_t ata_command = {
-            .command = (read) ? ATA_CMD_READ_LBA28_PIO : ATA_CMD_WRITE_LBA28_PIO,
-            .lba = lba,
-            .sector_count = sector_count,
-            .feature = 0,
-        };
-        // LBA28 is slightly faster than LBA48, so only fallback to LBA48 if needed
-        if (lba > ide_device->ata.total_sector_count_lba28) {
-            ata_command.command = (read) ? ATA_CMD_READ_LBA48_PIO : ATA_CMD_WRITE_LBA48_PIO;
-        }
-        return ata_pio_transfer(ata_bus, device_index, &ata_command, read, buffer);
-    }
-}
-
-// Send low level commands to ATA devices (HDDs). Read is 1 for read, 0 for write, if there is no data transfer, set
-// buffer to NULL
-int8_t ata_pio_transfer(ata_bus_t *ata_bus, uint8_t device_index, ata_command_t *ata_command, uint8_t read,
-                        void *buffer)
-{
-    const ide_device_t *ide_device = (device_index == 0) ? &ata_bus->master : &ata_bus->slave;
-    if (ide_device->is_present == 0 || ide_device->is_atapi == 1) {
-        return -1;
-    }
-
-    int8_t error = 0;
-    spinlock_acquire(&lock);
-
-    error = ata_send_command(ata_bus, device_index, ata_command);
-    if (error) {
-        goto bail_out;
-    }
-
-    ata_set_irq_en(ata_bus, 0);
-
-    // We are done if no data is being transferred
-    if (buffer == NULL) {
-        goto bail_out;
-    }
-
-    for (uint32_t i = 0; i < ata_command->sector_count; i++) {
-
-        error = ata_busy_wait(ata_bus);
-        if (error) {
-            goto bail_out;
-        }
-
-        if (read) {
-            insw(ata_bus->io_base + ATA_IO_DATA, ((uint16_t *)buffer) + i * ide_device->sector_size,
-                 ide_device->sector_size / 2);
-        } else {
-            outsw(ata_bus->io_base + ATA_IO_DATA, ((uint16_t *)buffer) + i * ide_device->sector_size,
-                  ide_device->sector_size / 2);
-        }
-    }
-
-    error = ata_busy_wait(ata_bus);
-    if (error) {
-        goto bail_out;
-    }
-
-    // Flush the cache on writes
-    if (!read) {
-        outb(ata_bus->io_base + ATA_IO_COMMAND, ATA_CMD_FLUSH_CACHE);
-        ata_busy_wait(ata_bus);
-    }
-
-bail_out:
-    ata_set_irq_en(ata_bus, 1);
-    spinlock_release(&lock);
-    return error;
-}
-
-// Send low level commands to ATAPI devices (CD/DVD). Read is 1 for read, 0 for write, if there is no data transfer, set
-// buffer to NULL
-int8_t atapi_pio_transfer(ata_bus_t *ata_bus, uint8_t device_index, uint8_t atapi_command[12], uint8_t read,
-                          void *buffer, uint32_t sector_count)
-{
-    const ide_device_t *ide_device = (device_index == 0) ? &ata_bus->master : &ata_bus->slave;
-    if (ide_device->is_present == 0 || ide_device->is_atapi == 0) {
-        return -1;
-    }
-
-    int8_t error = 0;
-    spinlock_acquire(&lock);
-
-    ata_command_t ata_command = {
-        .command = ATA_CMD_PACKET,
-        .lba = ide_device->sector_size << 8, // For ATAPI, the sector size is set in the LBA mid and high field
-        .sector_count = 0,
-        .feature = 0x00,
-    };
-
-    error = atapi_send_command(ata_bus, device_index, &ata_command, atapi_command);
-    if (error) {
-        goto bail_out;
-    }
-
-    // We are done if no data is being transferred
-    if (buffer == NULL) {
-        goto bail_out;
-    }
-
-    ata_set_irq_en(ata_bus, 0);
-
-    for (uint32_t i = 0; i < sector_count; i++) {
-
-        error = ata_busy_wait(ata_bus);
-        if (error) {
-            break;
-        }
-
-        uint16_t words_available =
-            ((inb(ata_bus->io_base + ATA_IO_LBA_HIGH) << 8) | inb(ata_bus->io_base + ATA_IO_LBA_MID)) / 2;
-
-        if (read) {
-            insw(ata_bus->io_base + ATA_IO_DATA, ((uint16_t *)buffer) + i * ide_device->sector_size, words_available);
-        } else {
-            outsw(ata_bus->io_base + ATA_IO_DATA, ((uint16_t *)buffer) + i * ide_device->sector_size, words_available);
-        }
-    }
-
-    // Flush the cache on writes
-    if (!read) {
-        outb(ata_bus->io_base + ATA_IO_COMMAND, ATA_CMD_FLUSH_CACHE);
-        ata_busy_wait(ata_bus);
-    }
-
-bail_out:
-    ata_set_irq_en(ata_bus, 1);
-    spinlock_release(&lock);
-    return error;
-}
-#endif
 
 /* IDE functions atuomatically determine if ATA or ATAPI commands should be used, PIO and DMA do the same thing but you
  * probably want to use DMA */
@@ -674,18 +519,6 @@ int8_t ide_bus_init(uint16_t busmaster_base, uint16_t ctrl_base, uint16_t io_bas
     ata_bus_reset(ata_bus);
     return error;
 }
-
-#if (0)
-int8_t ide_pio_read(ata_bus_t *ata_bus, uint8_t device_index, uint32_t lba, void *buffer, uint32_t sector_count)
-{
-    return ide_pio_io(ata_bus, device_index, 1, lba, buffer, sector_count);
-}
-
-int8_t ide_pio_write(ata_bus_t *ata_bus, uint8_t device_index, uint32_t lba, void *buffer, uint32_t sector_count)
-{
-    return ide_pio_io(ata_bus, device_index, 0, lba, buffer, sector_count);
-}
-#endif
 
 // For DMA, the data buffers cannot cross a 64K boundary, and must be contiguous in physical memory
 int8_t ide_dma_read(ata_bus_t *ata_bus, uint8_t device_index, uint32_t lba, void *buffer, uint32_t sector_count)
