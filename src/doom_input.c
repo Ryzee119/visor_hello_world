@@ -1,5 +1,5 @@
-#include "main.h"
 #include "PureDOOM/PureDOOM.h"
+#include "main.h"
 
 static const int16_t DOOM_DEADZONE = 0x3000;
 extern uint8_t doom_initd;
@@ -22,9 +22,11 @@ static int apply_deadzone(int input, int lower_deadzone, int upper_deadzone)
     } else {
         input = (input - lower_deadzone) * 32767 / (32767 - lower_deadzone);
     }
+
     if (is_negative) {
         input = -input;
     }
+
     return input;
 }
 

@@ -28,31 +28,25 @@ static void doom_task(void *parameters)
 {
     while (1) {
         printf_r("[DOOM] Waiting for USB device...\n");
-        xSemaphoreTake(doom_mutex, portMAX_DELAY);
+        //xSemaphoreTake(doom_mutex, portMAX_DELAY);
 
-        {
-            FILINFO fno;
-            DIR dir;
-            FRESULT res = f_opendir(&dir, "");
-            if (res != FR_OK) {
-                printf_r("[DOOM] f_opendir failed with error %d\n", res);
-                continue;
-            }
+        vTaskDelay(pdMS_TO_TICKS(5000));
 
-            printf_r("[DOOM] Reading files on USB\n");
-            for (;;) {
-                res = f_readdir(&dir, &fno);
-                if (res != FR_OK || fno.fname[0] == 0) {
-                    break;
-                }
-                if (!(fno.fattrib & AM_DIR)) {
-                    if (strstr(fno.fname, ".wad") || strstr(fno.fname, ".WAD")) {
-                        printf_r("   %8lu  %s\n", fno.fsize, fno.fname);
-                    }
-                }
+        directory_t *dir = opendir("0:/");
+        if (dir == NULL) {
+            printf_r("[DOOM] Failed to open directory\n");
+            continue;
+        }
+
+        fs_directory_entry_t *entry;
+        while ((entry = readdir(dir)) != NULL) {
+            printf_r("[DOOM] Found file %s %d kB\n", entry->file_name, entry->file_size / 1024);
+            if (strstr(entry->file_name, ".wad") || strstr(entry->file_name, ".WAD")) {
+                //doom_entry(entry->file_name);
             }
         }
-        doom_entry("0:/doom1.wad");
+
+       // doom_entry("0:/doom1.wad");
     }
 }
 
@@ -81,12 +75,14 @@ static void freertos_entry(void *parameters)
 
     display_init();
     interrupts_init();
-    //usb_init();
+    usb_init();
     ide_bus_init(XBOX_ATA_BUSMASTER_BASE, XBOX_ATA_PRIMARY_BUS_CTRL_BASE, XBOX_ATA_PRIMARY_BUS_IO_BASE, &ata_bus);
-#if (1)
+
+    //opendir("0:/");
+    //fileio_register_driver('C', &fs_hw_ata, &fs_sw_fatfs);
+
+#if (0)
     uint8_t *sector_buffer = pvPortMalloc(ATA_SECTOR_SIZE * 4096);
-    //aligned to 4096 bites
-    sector_buffer = (uint8_t *)(((uint32_t)sector_buffer + 4095) & ~4095);
     printf_r("\n[IDE] DMA Read read sector 3 of device 0\n");
     int8_t error = ide_dma_read(&ata_bus, 0, 3, sector_buffer, 1);
     if (error) {
@@ -98,9 +94,9 @@ static void freertos_entry(void *parameters)
         printf_r("\n");
     }
 
-    printf_r("\n[IDE] DMA Read read sector %d of device 1\n", 0x8000/2048);
+    printf_r("\n[IDE] DMA Read read sector %d of device 1\n", 0x8000 / 2048);
     memset(sector_buffer, 0, ATAPI_SECTOR_SIZE);
-    error = ide_dma_read(&ata_bus, 1, 0x8000/ATAPI_SECTOR_SIZE, sector_buffer, 1);
+    error = ide_dma_read(&ata_bus, 1, 0x8000 / ATAPI_SECTOR_SIZE, sector_buffer, 1);
     if (error) {
         printf_r("[IDE] Error reading sector 0\n");
     } else {
@@ -110,8 +106,7 @@ static void freertos_entry(void *parameters)
         printf_r("\n");
     }
 
-
-#endif 
+#endif
     cpuid_eax_01 cpuid_info;
     cpu_read_cpuid(CPUID_VERSION_INFO, &cpuid_info.eax.flags, &cpuid_info.ebx.flags, &cpuid_info.ecx.flags,
                    &cpuid_info.edx.flags);
@@ -130,8 +125,8 @@ static void freertos_entry(void *parameters)
     uint8_t temp1, temp2;
     smbus_input_byte(XBOX_SMBUS_ADDRESS_TEMP, 0x00, &temp1);
     smbus_input_byte(XBOX_SMBUS_ADDRESS_TEMP, 0x01, &temp2);
-    //printf_r("[SYS] CPU: %d C\n", temp1);
-    //printf_r("[SYS] MB: %d C\n", temp2);
+    // printf_r("[SYS] CPU: %d C\n", temp1);
+    // printf_r("[SYS] MB: %d C\n", temp2);
 
     xbox_led_output(XLED_GREEN, XLED_GREEN, XLED_GREEN, XLED_GREEN);
 
@@ -164,4 +159,8 @@ void _exit(int code)
 {
     while (1)
         ;
+}
+int gettimeofday(struct timeval *restrict tv, void *restrict tz)
+{
+    return -1;
 }

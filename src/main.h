@@ -19,7 +19,10 @@
 #include <xbox/xbox.h>
 
 #include <fatfs/diskio.h>
+#include <fatx/libfatx/fatx.h>
 #include <tusb_xinput/xinput_host.h>
+
+#include "fileio.h"
 
 #define THREAD_PRIORITY_LOWEST  0
 #define THREAD_PRIORITY_LOW     1
@@ -30,18 +33,6 @@
 #if THREAD_PRIORITY_HIGHEST > configMAX_PRIORITIES
 #error "THREAD_PRIORITY_HIGHEST is higher than configMAX_PRIORITIES"
 #endif
-
-typedef struct fileio_drv
-{
-    DSTATUS (*disk_status)(BYTE pdrv);
-    DSTATUS (*disk_initialize)(BYTE pdrv);
-    DRESULT (*disk_read)(BYTE pdrv, BYTE *buff, LBA_t sector, UINT count);
-    DRESULT (*disk_write)(BYTE pdrv, const BYTE *buff, LBA_t sector, UINT count);
-    DRESULT (*disk_ioctl)(BYTE pdrv, BYTE cmd, void *buff);
-} fileio_drv_t;
-
-int8_t fileio_register_driver(uint8_t pdrv, fileio_drv_t *driver);
-int8_t fileio_unregister_driver(uint8_t pdrv);
 
 int printf_r(const char *format, ...);
 

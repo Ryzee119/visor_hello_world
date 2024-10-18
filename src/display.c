@@ -13,7 +13,7 @@ void display_init()
 
     uint8_t *fb = malloc(width * height * bpp);
     memset(fb, DISPLAY_BG_COLOR, width * height * bpp);
-    fb = (uint8_t *)(0xF0000000 | (intptr_t)fb);
+    fb = XBOX_GET_WRITE_COMBINE_PTR(fb);
     xbox_video_init(0x44030307, (bpp == 2) ? RGB565 : ARGB8888, fb);
 }
 

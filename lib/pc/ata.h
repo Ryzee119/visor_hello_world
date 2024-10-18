@@ -79,12 +79,12 @@
 #define ATA_SECTOR_SIZE   512
 #define ATAPI_SECTOR_SIZE 2048
 
-#ifndef ATA_DRQ_TIMEOUT
-#define ATA_DRQ_TIMEOUT 2000
-#endif
-
 #ifndef ATA_BSY_TIMEOUT
 #define ATA_BSY_TIMEOUT 10000
+#endif
+
+#ifndef ATA_MAX_DMA_QUEUE_BYTES
+#define ATA_MAX_DMA_QUEUE_BYTES (65536 * 8) // Must be a multiple of 65536
 #endif
 
 typedef struct ata_command

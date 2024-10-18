@@ -15,7 +15,6 @@
 #pragma GCC diagnostic pop
 #pragma GCC diagnostic pop
 
-
 static SemaphoreHandle_t doom_logic_mutex;
 static const char *cached_wad_path = NULL;
 static uint8_t *cached_wad_data = NULL;
@@ -174,7 +173,8 @@ int doom_entry(const char *wad_path)
     doom_initd = 1;
 
     doom_logic_mutex = xSemaphoreCreateMutex();
-    xTaskCreate(doom_sound_task, "DoomSound", configMINIMAL_STACK_SIZE, &doom_logic_mutex, THREAD_PRIORITY_NORMAL, NULL);
+    xTaskCreate(doom_sound_task, "DoomSound", configMINIMAL_STACK_SIZE, &doom_logic_mutex, THREAD_PRIORITY_NORMAL,
+                NULL);
 
     uint32_t *final_screen_buffer = pvPortMalloc(640 * 480 * 4);
     final_screen_buffer = (uint32_t *)(0xF0000000 | (intptr_t)final_screen_buffer);
@@ -187,23 +187,46 @@ int doom_entry(const char *wad_path)
 
         // The doom framebuffer is palette indexed at 320x200.
         // We scale by 2 so it is 640x400 and apply the palette to convert to ARGB8888.
+        // We also scale the height by 1.2 to 480.
         extern unsigned char screen_palette[256 * 3];
         uint8_t *indexed_framebuffer = (uint8_t *)doom_get_framebuffer(1);
         uint32_t *screen_buffer_ptr = final_screen_buffer;
+        uint32_t line = 0, flipflop = 0;
+        const uint32_t FINAL_WIDTH = SCREENWIDTH * 2;
 
-        screen_buffer_ptr += (SCREENWIDTH * 2) * 40; // 40 to shift down so it is centered
         for (int pixel = 0; pixel < SCREENWIDTH * SCREENHEIGHT; pixel++) {
             uint32_t index = indexed_framebuffer[pixel] * 3;
 
             uint32_t argb = 0xff000000 | (screen_palette[index] << 16) | (screen_palette[index + 1] << 8) |
                             screen_palette[index + 2];
 
+            // Double up the pixel horizontally
             *screen_buffer_ptr++ = argb;
             *screen_buffer_ptr++ = argb;
 
+            // Double up the lines
             if ((pixel + 1) % SCREENWIDTH == 0) {
-                memcpy(screen_buffer_ptr, screen_buffer_ptr - SCREENWIDTH * 2, SCREENWIDTH * 2 * 4);
-                screen_buffer_ptr += SCREENWIDTH * 2;
+                memcpy(screen_buffer_ptr, screen_buffer_ptr - FINAL_WIDTH, FINAL_WIDTH * 4);
+                screen_buffer_ptr += FINAL_WIDTH;
+
+                // On original DOOM, each pixel was 20% higher, however we cant easily do this on a 640x480 display
+                // Poor man's way is to redraw every 5th line.
+                // As we are doubling anyway, ideally we drawing on line on row 2.5 and one on 5, but we can't do that.
+                // instead we flip flop between line 2 and 3 (~2.5) and 5.
+
+                if (line == ((flipflop) ? 2 : 3)) {
+                    memcpy(screen_buffer_ptr, screen_buffer_ptr - FINAL_WIDTH, FINAL_WIDTH * 4);
+                    screen_buffer_ptr += FINAL_WIDTH;
+                }
+
+                if (line == 5) {
+                    memcpy(screen_buffer_ptr, screen_buffer_ptr - FINAL_WIDTH, FINAL_WIDTH * 4);
+                    screen_buffer_ptr += FINAL_WIDTH;
+                    line = 0;
+                    flipflop ^= 1;
+                }
+
+                line++;
             }
         }
 

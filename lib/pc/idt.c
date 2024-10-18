@@ -8,7 +8,7 @@ void idt_install_interrupt(uint8_t vector, void (*handler)(void), uint8_t type)
 {
     // FIXME, should we be disabling interrupts here?
     uint16_t usCodeSegment;
-    uint32_t ulBase = (uint32_t)handler;
+    uint32_t ulBase = (uint32_t)system_get_physical_address(handler);
 
     // Get the current IDT
     IDTPointer_t idtr;

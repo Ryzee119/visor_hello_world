@@ -19,6 +19,7 @@ __attribute__((section(".boot_code"))) static void smc_io(uint8_t command, uint8
     while (io_input_byte(SMBUS_STATUS) & SMBUS_STATUS_BUSY)
         ;
 
+smbus_collision_retry:
     io_output_byte(SMBUS_ADDRESS, XBOX_SMBUS_ADDRESS_SMC | read);
     io_output_byte(SMBUS_COMMAND, command);
     io_output_word(SMBUS_STATUS, 0xFFFF);
@@ -31,6 +32,12 @@ __attribute__((section(".boot_code"))) static void smc_io(uint8_t command, uint8
 
     while (io_input_byte(SMBUS_STATUS) & SMBUS_STATUS_BUSY)
         ;
+
+    // Check for collision
+    uint16_t status = io_input_word(SMBUS_STATUS);
+    if (status & SMBUS_STATUS_COLLISION) {
+        goto smbus_collision_retry;
+    }
 
     if (read) {
         *data8 = io_input_byte(SMBUS_DATA);
@@ -105,11 +112,11 @@ __attribute__((section(".boot_code"))) void *boot_memmove(void *dest, const void
     return dest;
 }
 
-#define LZ4_FREESTANDING 1
+#define LZ4_FREESTANDING            1
 #define LZ4_memmove(dst, src, size) boot_memmove((dst), (src), (size))
-#define LZ4_memcpy(dst, src, size) boot_memcpy((dst), (src), (size))
-#define LZ4_memset(p, v, s) boot_memset((p), (v), (s))
-#define LZ4_FORCE_O2 __attribute__((section(".boot_code")))
+#define LZ4_memcpy(dst, src, size)  boot_memcpy((dst), (src), (size))
+#define LZ4_memset(p, v, s)         boot_memset((p), (v), (s))
+#define LZ4_FORCE_O2                __attribute__((section(".boot_code")))
 __attribute__((section(".boot_code"))) void *lz4_error_memory_allocation_is_disabled(void)
 {
     return NULL;

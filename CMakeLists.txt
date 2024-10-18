@@ -47,6 +47,12 @@ add_library(fatfs INTERFACE)
 target_include_directories(fatfs PRIVATE INTERFACE ${CMAKE_CURRENT_LIST_DIR}/config_fatfs)
 target_sources(fatfs INTERFACE ${FATFS_DIR}/ff.c ${FATFS_DIR}/ffunicode.c ${CMAKE_CURRENT_LIST_DIR}/config_fatfs/ffsystem.c)
 
+# FATX
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/fatx/libfatx/)
+add_library(fatfx INTERFACE)
+list(REMOVE_ITEM FATX_SOURCES ${CMAKE_CURRENT_LIST_DIR}/lib/fatx/libfatx/fatx_dev.c)
+target_sources(fatfx INTERFACE ${FATX_SOURCES})
+
 #Midi
 add_library(midi INTERFACE)
 target_sources(midi INTERFACE ${CMAKE_CURRENT_LIST_DIR}/lib/midi/midiplay.c ${CMAKE_CURRENT_LIST_DIR}/lib/midi/synth.c)
@@ -58,7 +64,7 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/xbox xbox)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/pc pc)
 
 # Link the libraries
-target_link_libraries(${OUTPUT_NAME} PRIVATE c arith64 freertos_kernel pc xbox tinyusb xinput_host fatfs midi)
+target_link_libraries(${OUTPUT_NAME} PRIVATE c arith64 freertos_kernel pc xbox tinyusb xinput_host fatfs fatfx midi)
 
 # Create a binary from the elf
 add_custom_command(TARGET ${OUTPUT_NAME} POST_BUILD
@@ -93,7 +99,7 @@ target_include_directories(${OUTPUT_NAME} PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/lib
 )
 
-file(GLOB C_SOURCES ${CMAKE_SOURCE_DIR}/*.c)
+file(GLOB C_SOURCES ${CMAKE_SOURCE_DIR}/*.c ${CMAKE_SOURCE_DIR}/fileio/*.c)
 
 # Source files
 target_sources(${OUTPUT_NAME} PRIVATE

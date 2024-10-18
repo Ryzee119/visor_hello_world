@@ -19,17 +19,17 @@ def print_memory_usage(elf_path):
             if sh_type == 'SHT_PROGBITS' and not sh_flags & 0x8:  # SHF_ALLOC flag
                 memory_usage += sh_size
 
-            elif '.heap' in section.name:
+            if '.heap' in section.name:
                 heap_size += sh_size
 
             elif '.stack' in section.name:
                 stack_size += sh_size
 
-            elif '.boot_code' in section.name:
-                boot_size += sh_size
-
             elif '.bss' in section.name:
                 ram_usage += sh_size
+
+            elif '.boot_code' in section.name:
+                boot_size += sh_size
 
         print(f"Heap Memory: {round(heap_size/1024/1024, 3)} MB")
         print(f"Stack Memory: {round(stack_size)} bytes")

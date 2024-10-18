@@ -27,13 +27,16 @@
 #include "led.h"
 #include "pci.h"
 #include "serial.h"
-#include "timer.h"
+#include "xtime.h"
 #include "video.h"
 
 #define XBOX_MIN(a, b)           ((a) < (b) ? (a) : (b))
 #define XBOX_MAX(a, b)           ((a) > (b) ? (a) : (b))
 #define XBOX_ARRAY_SIZE(a)       (sizeof(a) / sizeof((a)[0]))
 #define XBOX_CLAMP(low, x, high) (XBOX_MIN(XBOX_MAX(x, low), high))
+
+// See MTRRs in 2bmain.nasm
+#define XBOX_GET_WRITE_COMBINE_PTR(ptr) ((void *)((uintptr_t)(ptr) | 0xF0000000))
 
 #define XDEBUG
 #ifdef XDEBUG
