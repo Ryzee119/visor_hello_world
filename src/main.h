@@ -19,7 +19,7 @@
 #include <xbox/xbox.h>
 
 #include <fatfs/diskio.h>
-#include <fatx/libfatx/fatx.h>
+#include <libfatx/fatx.h>
 #include <tusb_xinput/xinput_host.h>
 
 #include "fileio.h"

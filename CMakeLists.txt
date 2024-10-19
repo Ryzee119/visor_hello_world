@@ -48,9 +48,9 @@ target_include_directories(fatfs PRIVATE INTERFACE ${CMAKE_CURRENT_LIST_DIR}/con
 target_sources(fatfs INTERFACE ${FATFS_DIR}/ff.c ${FATFS_DIR}/ffunicode.c ${CMAKE_CURRENT_LIST_DIR}/config_fatfs/ffsystem.c)
 
 # FATX
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/fatx/libfatx/)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/libfatx/)
 add_library(fatfx INTERFACE)
-list(REMOVE_ITEM FATX_SOURCES ${CMAKE_CURRENT_LIST_DIR}/lib/fatx/libfatx/fatx_dev.c)
+list(REMOVE_ITEM FATX_SOURCES ${CMAKE_CURRENT_LIST_DIR}/lib/libfatx/fatx_dev.c)
 target_sources(fatfx INTERFACE ${FATX_SOURCES})
 
 #Midi

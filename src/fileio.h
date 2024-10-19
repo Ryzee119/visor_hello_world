@@ -1,13 +1,17 @@
 #include "main.h"
 
-typedef struct directory_entry
-{
-    char file_name[255 + 1];
-    uint64_t file_size;
-} fs_directory_entry_t;
+struct directory_entry;
 
-// Create a software driver for the file system (FAT, NTFS, etc)
-typedef struct fs_file_driver
+enum
+{
+    FS_IO_SYNC,
+    FS_IO_GET_SECTOR_COUNT,
+    FS_IO_GET_SECTOR_SIZE,
+    FS_IO_GET_BLOCK_SIZE
+};
+typedef uint8_t fs_ioctrl_cmd_t;
+
+typedef struct fs_io
 {
     int (*init)(const char drive_letter);
     int (*open)(const char *path, int flags);
@@ -16,48 +20,53 @@ typedef struct fs_file_driver
     off_t (*lseek)(int fd, off_t offset, int whence);
     int (*close)(int fd);
 
+    // Optional, set to NULL if not supported
     void *(*opendir)(const char *path);
-    fs_directory_entry_t *(*readdir)(void *handle, fs_directory_entry_t *entry);
+    struct directory_entry *(*readdir)(void *handle, struct directory_entry *entry);
     void (*closedir)(void *handle);
-} fs_sw_driver_t;
+} fs_io_t;
 
-// Create a hardware driver for the file system (USB, ATA, etc)
-typedef struct filesystem_io_driver
+typedef struct fs_io_ll
 {
-    int8_t (*disk_status)(char drive_letter);
-    int8_t (*disk_initialize)(char drive_letter);
-    int8_t (*disk_read)(char drive_letter, void *buffer, uint64_t sector, uint32_t count);
-    int8_t (*disk_write)(char drive_letter, const void *buffer, uint64_t sector, uint32_t count);
-    int8_t (*disk_ioctl)(char drive_letter, uint8_t cmd, void *buff);
-} fs_hw_driver_t;
+    ssize_t (*read)(void *handle, void *buffer, uint64_t offset, size_t count);
+    ssize_t (*write)(void *handle, const void *buffer, uint64_t offset, size_t count);
+    int8_t (*ioctrl)(const char drive_letter, fs_ioctrl_cmd_t cmd, void *buff);
+} fs_io_ll_t;
 
-typedef struct file_system_driver
+typedef struct file_io_handle
 {
     char drive_letter;
-    fs_sw_driver_t *sw;
-    fs_hw_driver_t *hw;
-    struct file_system_driver *next;
-} file_system_driver_t;
+    struct file_io_handle *next;
+    fs_io_t *io;
+    fs_io_ll_t *io_ll;
+    void *user_data;
+} file_io_handle_t;
 
-typedef struct file_pointer
+typedef struct file_handle
 {
-    int handle;
+    uint32_t handle;
     void *user_data;
-    fs_sw_driver_t *sw;
-    fs_hw_driver_t *hw;
-} file_pointer_t;
+} file_handle_t;
 
-typedef struct directory {
-    fs_sw_driver_t *sw;
-    fs_hw_driver_t *hw;
-    fs_directory_entry_t entry;
+typedef struct directory_entry
+{
+    char file_name[255 + 1];
+    uint64_t file_size;
+} directory_entry_t;
+
+typedef struct directory_handle
+{
+    directory_entry_t entry;
     void *user_data;
-} directory_t;
+} directory_handle_t;
 
-file_system_driver_t *fileio_find_driver(const char drive_letter);
-int8_t fileio_register_driver(const char drive_letter, fs_hw_driver_t *hw, fs_sw_driver_t *sw);
-int8_t fileio_unregister_driver(const char drive_letter);
+// Dirent-like functions
+directory_handle_t *opendir(const char *path);
+directory_entry_t *readdir(directory_handle_t *dir);
+void closedir(directory_handle_t *dir);
 
-directory_t *opendir(const char *path);
-fs_directory_entry_t *readdir(directory_t *dir);
-void closedir(directory_t *dir);
+#define DRIVE_ACCESS_RAW(driver_letter) (0x80 | driver_letter)
+
+file_io_handle_t *fileio_find_io_handle(const char drive_letter);
+int8_t fileio_register_io_handle(const char drive_letter, fs_io_t *io, fs_io_ll_t *io_ll);
+int8_t fileio_unregister_io_handle(const char drive_letter);

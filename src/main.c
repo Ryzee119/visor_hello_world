@@ -30,21 +30,27 @@ static void doom_task(void *parameters)
         printf_r("[DOOM] Waiting for USB device...\n");
         //xSemaphoreTake(doom_mutex, portMAX_DELAY);
 
-        vTaskDelay(pdMS_TO_TICKS(5000));
+        //vTaskDelay(pdMS_TO_TICKS(5000));
 
-        directory_t *dir = opendir("0:/");
+        directory_handle_t *dir = opendir("C:/");
         if (dir == NULL) {
             printf_r("[DOOM] Failed to open directory\n");
+            vTaskDelay(pdMS_TO_TICKS(1000));
             continue;
         }
 
-        fs_directory_entry_t *entry;
+        
+
+        directory_entry_t *entry;
         while ((entry = readdir(dir)) != NULL) {
             printf_r("[DOOM] Found file %s %d kB\n", entry->file_name, entry->file_size / 1024);
             if (strstr(entry->file_name, ".wad") || strstr(entry->file_name, ".WAD")) {
                 //doom_entry(entry->file_name);
             }
         }
+
+        vTaskDelay(pdMS_TO_TICKS(5000));
+        
 
        // doom_entry("0:/doom1.wad");
     }
@@ -70,16 +76,16 @@ static void freertos_entry(void *parameters)
 
     freertos_running = 1;
 
-    doom_mutex = xSemaphoreCreateBinary();
-    xTaskCreate(doom_task, "Doom!", configMINIMAL_STACK_SIZE * 2, NULL, THREAD_PRIORITY_NORMAL, NULL);
-
     display_init();
     interrupts_init();
     usb_init();
     ide_bus_init(XBOX_ATA_BUSMASTER_BASE, XBOX_ATA_PRIMARY_BUS_CTRL_BASE, XBOX_ATA_PRIMARY_BUS_IO_BASE, &ata_bus);
 
+    doom_mutex = xSemaphoreCreateBinary();
+    xTaskCreate(doom_task, "Doom!", configMINIMAL_STACK_SIZE * 2, NULL, THREAD_PRIORITY_NORMAL, NULL);
+
     //opendir("0:/");
-    //fileio_register_driver('C', &fs_hw_ata, &fs_sw_fatfs);
+    //fileio_register_io_handle('C', &fs_hw_ata, &fs_sw_fatfs);
 
 #if (0)
     uint8_t *sector_buffer = pvPortMalloc(ATA_SECTOR_SIZE * 4096);

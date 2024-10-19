@@ -27,8 +27,8 @@
 #include "led.h"
 #include "pci.h"
 #include "serial.h"
-#include "xtime.h"
 #include "video.h"
+#include "xtime.h"
 
 #define XBOX_MIN(a, b)           ((a) < (b) ? (a) : (b))
 #define XBOX_MAX(a, b)           ((a) > (b) ? (a) : (b))
@@ -173,9 +173,11 @@
 #define XBOX_ACPI_TIMER_PORT 0x8008 // Cromwell
 
 // SuperIO
-#define XBOX_SIO_INDEX_PORT 0x2E
-#define XBOX_SIO_DATA_PORT  0x2F
-#define XBOX_SERIAL_COM1    0x03F8
+#define XBOX_SIO_CONFIG  0x2E
+#define XBOX_SIO_DATA    0x2F
+#define XBOX_SIO_INDEX   0x2F
+#define XBOX_SERIAL_COM1 0x03F8
+#define XBOX_SERIAL_BAUD 115200
 
 // SMBus
 #define XBOX_SMBUS_ADDRESS_SMC              0x20
@@ -188,5 +190,5 @@
 // IDE ATA
 #define XBOX_ATA_PRIMARY_BUS_IO_BASE   0x1F0
 #define XBOX_ATA_PRIMARY_BUS_CTRL_BASE 0x3F6
-#define XBOX_ATA_BUSMASTER_BASE     PCI_IDE_IO_REGISTER_BASE_4
+#define XBOX_ATA_BUSMASTER_BASE        PCI_IDE_IO_REGISTER_BASE_4
 #endif

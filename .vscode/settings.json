@@ -69,6 +69,7 @@
         "sstream": "c",
         "fatx_log.h": "c",
         "fatx_internal.h": "c",
-        "time.h": "c"
+        "time.h": "c",
+        "string.h": "c"
     }
 }
