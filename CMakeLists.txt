@@ -99,7 +99,7 @@ target_include_directories(${OUTPUT_NAME} PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/lib
 )
 
-file(GLOB C_SOURCES ${CMAKE_SOURCE_DIR}/*.c ${CMAKE_SOURCE_DIR}/fileio/*.c)
+file(GLOB C_SOURCES ${CMAKE_SOURCE_DIR}/*.c ${CMAKE_SOURCE_DIR}/fs_io/*.c)
 
 # Source files
 target_sources(${OUTPUT_NAME} PRIVATE

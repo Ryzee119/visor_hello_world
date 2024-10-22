@@ -134,7 +134,7 @@ int fatx_next_dir_entry(struct fatx_fs *fs, struct fatx_dir *dir)
     fatx_fat_entry fat_entry;
     int status;
 
-    fatx_debug(fs, "fatx_next_dir_entry()\n");
+    //fatx_debug(fs, "fatx_next_dir_entry()\n");
 
     dir->entry += 1;
 
@@ -182,7 +182,7 @@ int fatx_read_dir(struct fatx_fs *fs, struct fatx_dir *dir, struct fatx_dirent *
     size_t items, offset;
     int status;
 
-    fatx_debug(fs, "fatx_read_dir(cluster=%zd, entry=%zd)\n", dir->cluster, dir->entry);
+    //fatx_debug(fs, "fatx_read_dir(cluster=%zd, entry=%zd)\n", dir->cluster, dir->entry);
 
     /* Seek to the current cluster. */
     offset = dir->entry * sizeof(struct fatx_raw_directory_entry);

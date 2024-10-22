@@ -74,10 +74,10 @@ void tuh_xinput_umount_cb(uint8_t dev_addr, uint8_t instance)
 
 void tuh_mount_cb(uint8_t daddr)
 {
-    TU_LOG1("[USB] Device mounted %d\n", daddr);
+    TU_LOG2("[USB] Device mounted %d\n", daddr);
 }
 
 void tuh_umount_cb(uint8_t daddr)
 {
-    TU_LOG1("[USB] Device unmounted %d\n", daddr);
+    TU_LOG2("[USB] Device unmounted %d\n", daddr);
 }

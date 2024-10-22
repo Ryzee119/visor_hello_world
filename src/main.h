@@ -5,6 +5,9 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <ctype.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include <FreeRTOS.h>
 #include <freertos_irq.h>
@@ -13,16 +16,21 @@
 #include <task.h>
 #include <timers.h>
 
-#include <fatfs/ff.h>
-#include <font/unscii_16.h>
-#include <tinyusb/src/tusb.h>
 #include <xbox/xbox.h>
 
-#include <fatfs/diskio.h>
-#include <libfatx/fatx.h>
+#include <font/unscii_16.h>
+#include <tinyusb/src/tusb.h>
 #include <tusb_xinput/xinput_host.h>
 
 #include "fileio.h"
+
+#ifndef MAX
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#endif
+
+#ifndef MIN
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#endif
 
 #define THREAD_PRIORITY_LOWEST  0
 #define THREAD_PRIORITY_LOW     1

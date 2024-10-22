@@ -92,6 +92,7 @@ struct fatx_fs {
     FILE             *log_handle;
     int               log_level;
     struct fatx_cache fat_cache;
+    void             *user_data;
 };
 
 struct fatx_dir {

@@ -47,7 +47,7 @@ int fatx_print(struct fatx_fs *fs, int level, char const *format, ...)
 
     if (fs->log_handle && level <= fs->log_level)
     {
-        status = vfprintf(fs->log_handle, format, args);
+        status = vfprintf(stdout, format, args);
     }
 
     va_end(args);

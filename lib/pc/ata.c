@@ -58,7 +58,7 @@ static int8_t ata_busy_wait(ata_bus_t *ata_bus)
         }
         system_yield(0);
     } while ((status & ATA_STATUS_BSY) && !(status & ATA_STATUS_DRQ) && timeout--);
-    return (timeout) ? 0 : -2;
+    return (timeout > 0) ? 0 : -1;
 }
 
 // This will reset both ATA devices on the bus
@@ -199,13 +199,18 @@ static int8_t busmaster_dma_transfer(ata_bus_t *ata_bus, void *buffer, uint8_t r
 
     // FIXME: This assumes contigous memory but we can scatter gather on page boundaries - although we're not paging anyway so all good
     while (bytes_to_process > 0) {
-
         uint32_t bytes = (bytes_to_process > 0xFFFF) ? 0xFFFF : bytes_to_process;
+
+        //Make sure we dont cross a 64K boundary
+        if (((uint32_t)buffer8 & 0xFFFF) + bytes > 0x10000) {
+            bytes = 0x10000 - ((uint32_t)buffer8 & 0xFFFF);
+        }
+
         bytes_to_process -= bytes;
 
         prd_table[prd_index].base_addr = (uint32_t)system_get_physical_address(buffer8);
         prd_table[prd_index].byte_count = bytes;
-        prd_table[prd_index].flags = (bytes_to_process) ? 0 : 0x8000; // Set MSB to indicate the last entry
+        prd_table[prd_index].flags = (bytes_to_process) ? 0x0000 : 0x8000; // Set MSB to indicate the last entry
 
         prd_index++;
         buffer8 += bytes;
@@ -251,6 +256,9 @@ static int8_t busmaster_dma_transfer(ata_bus_t *ata_bus, void *buffer, uint8_t r
     // Clear the interrupt flag and error flag
     outb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_STATUS,
          ATA_BUSMASTER_DMA_STATUS_INTERRUPT | ATA_BUSMASTER_DMA_STATUS_ERROR);
+
+    // Reading this byte may perform a necessary final cache flush of the DMA data to memory. 
+    uint8_t device_status = inb(ata_bus->io_base + ATA_IO_STATUS);
 
     return error;
 }
@@ -556,7 +564,7 @@ int8_t ide_dma_read(ata_bus_t *ata_bus, uint8_t device_index, uint32_t lba, void
 }
 
 // For DMA, the data buffers cannot cross a 64K boundary, and must be contiguous in physical memory
-int8_t ide_dma_write(ata_bus_t *ata_bus, uint8_t device_index, uint32_t lba, void *buffer, uint32_t sector_count)
+int8_t ide_dma_write(ata_bus_t *ata_bus, uint8_t device_index, uint32_t lba, const void *buffer, uint32_t sector_count)
 {
-    return ide_dma_io(ata_bus, device_index, 0, lba, buffer, sector_count);
+    return ide_dma_io(ata_bus, device_index, 0, lba, (void *)buffer, sector_count);
 }

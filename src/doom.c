@@ -16,10 +16,6 @@
 #pragma GCC diagnostic pop
 
 static SemaphoreHandle_t doom_logic_mutex;
-static const char *cached_wad_path = NULL;
-static uint8_t *cached_wad_data = NULL;
-static uint32_t cached_wad_size = 0;
-static uint32_t cached_wad_cursor = 0;
 
 uint8_t doom_initd = 0;
 int16_t doom_rightx = 0;
@@ -52,59 +48,31 @@ static void dooom_gettime(int *sec, int *usec)
 
 static void *dooom_open(const char *filename, const char *mode)
 {
-    if (strcmp(filename, cached_wad_path) == 0) {
-        cached_wad_cursor = 0;
-        return cached_wad_data;
-    }
     return fopen(filename, mode);
 }
 
 static void dooom_close(void *handle)
 {
-    if (handle == cached_wad_data) {
-        return;
-    }
     fclose((FILE *)handle);
 }
 
 static int dooom_read(void *handle, void *buf, int count)
 {
-    if (handle == cached_wad_data) {
-        memcpy(buf, &cached_wad_data[cached_wad_cursor], count);
-        cached_wad_cursor += count;
-        return count;
-    }
     return fread(buf, 1, count, (FILE *)handle);
 }
 
 static int dooom_write(void *handle, const void *buf, int count)
 {
-    if (handle == cached_wad_data) {
-        return -1;
-    }
     return fwrite(buf, 1, count, (FILE *)handle);
 }
 
 static int dooom_seek(void *handle, int offset, doom_seek_t origin)
 {
-    if (handle == cached_wad_data) {
-        if (origin == DOOM_SEEK_SET) {
-            cached_wad_cursor = offset;
-        } else if (origin == DOOM_SEEK_CUR) {
-            cached_wad_cursor += offset;
-        } else if (origin == DOOM_SEEK_END) {
-            cached_wad_cursor = cached_wad_size - offset;
-        }
-        return 0;
-    }
     return fseek(handle, offset, origin);
 }
 
 static int dooom_tell(void *handle)
 {
-    if (handle == cached_wad_data) {
-        return cached_wad_cursor;
-    }
     return ftell((FILE *)handle);
 }
 
@@ -123,10 +91,11 @@ void doom_memset(void *ptr, int value, int num)
     memset(ptr, value, num);
 }
 
+static char wad_dir[] = "0:";
 char *dooom_getenv(const char *var)
 {
     if (strcmp(var, "DOOMWADDIR") == 0) {
-        return "0:";
+        return wad_dir;
     }
     return 0;
 }
@@ -137,30 +106,7 @@ int doom_entry(const char *wad_path)
     int argc = 3;
     args[2] = (char *)wad_path;
 
-    // Read in WAD file to RAM. Doing it in a big block here seems to work a lot better
-    printf_r("[DOOM] Reading WAD file: %s\n", wad_path);
-    FILE *fp = fopen(wad_path, "rb");
-    if (fp == NULL) {
-        printf_r("[DOOM] Could not open WAD file\n");
-        return -1;
-    }
-    fseek(fp, 0, SEEK_END);
-    cached_wad_size = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-    cached_wad_data = pvPortMalloc(cached_wad_size);
-
-    int chunk_size = 256 * 1024;
-    int i = 0;
-    printf_r("[%*s]\r[", cached_wad_size / chunk_size + 1, " ");
-    while (chunk_size == 256 * 1024) {
-        chunk_size = fread(&cached_wad_data[i], 1, chunk_size, fp);
-        i += chunk_size;
-        printf_r("=");
-    }
-    printf_r("\n");
-    fclose(fp);
-
-    cached_wad_path = strdup(wad_path);
+    wad_dir[0] = wad_path[0];
 
     doom_set_print(dooom_printf);
     doom_set_malloc(dooom_malloc, dooom_free);
@@ -169,6 +115,7 @@ int doom_entry(const char *wad_path)
     doom_set_getenv(dooom_getenv);
 
     printf_r("[DOOM] Initializing...\n");
+
     doom_init(argc, args, 0);
     doom_initd = 1;
 
@@ -177,7 +124,7 @@ int doom_entry(const char *wad_path)
                 NULL);
 
     uint32_t *final_screen_buffer = pvPortMalloc(640 * 480 * 4);
-    final_screen_buffer = (uint32_t *)(0xF0000000 | (intptr_t)final_screen_buffer);
+    final_screen_buffer = XBOX_GET_WRITE_COMBINE_PTR(final_screen_buffer);
     while (1) {
         uint32_t start_ticks = xTaskGetTickCount();
         doom_mouse_move(doom_rightx / 256, 0);

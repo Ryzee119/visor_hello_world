@@ -70,6 +70,8 @@
         "fatx_log.h": "c",
         "fatx_internal.h": "c",
         "time.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "fileio.h": "c",
+        "fcntl.h": "c"
     }
 }

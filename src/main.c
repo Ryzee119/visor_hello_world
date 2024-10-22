@@ -28,35 +28,33 @@ static void doom_task(void *parameters)
 {
     while (1) {
         printf_r("[DOOM] Waiting for USB device...\n");
-        //xSemaphoreTake(doom_mutex, portMAX_DELAY);
+        xSemaphoreTake(doom_mutex, portMAX_DELAY);
+        printf_r("[DOOM] USB device connected\n");
 
-        //vTaskDelay(pdMS_TO_TICKS(5000));
-
-        directory_handle_t *dir = opendir("C:/");
-        if (dir == NULL) {
-            printf_r("[DOOM] Failed to open directory\n");
-            vTaskDelay(pdMS_TO_TICKS(1000));
-            continue;
-        }
-
-        
-
-        directory_entry_t *entry;
-        while ((entry = readdir(dir)) != NULL) {
-            printf_r("[DOOM] Found file %s %d kB\n", entry->file_name, entry->file_size / 1024);
-            if (strstr(entry->file_name, ".wad") || strstr(entry->file_name, ".WAD")) {
-                //doom_entry(entry->file_name);
-            }
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(5000));
-        
-
-       // doom_entry("0:/doom1.wad");
+        doom_entry("C:/doom1.wad");
     }
 }
 
 ata_bus_t ata_bus;
+
+uint32_t crc32(const void *data, size_t length) {
+    const uint8_t *byteData = (const uint8_t *)data;
+    uint32_t crc = 0xFFFFFFFF; // Initial value
+
+    for (size_t i = 0; i < length; i++) {
+        crc ^= byteData[i]; // XOR byte into the least significant byte of crc
+
+        for (int j = 0; j < 8; j++) { // Process each bit
+            if (crc & 1) {
+                crc = (crc >> 1) ^ 0x04C11DB7; // Apply polynomial
+            } else {
+                crc >>= 1;
+            }
+        }
+    }
+
+    return crc ^ 0xFFFFFFFF; // Final XOR to complete the calculation
+}
 
 static void freertos_entry(void *parameters)
 {
@@ -81,38 +79,109 @@ static void freertos_entry(void *parameters)
     usb_init();
     ide_bus_init(XBOX_ATA_BUSMASTER_BASE, XBOX_ATA_PRIMARY_BUS_CTRL_BASE, XBOX_ATA_PRIMARY_BUS_IO_BASE, &ata_bus);
 
+    extern fs_io_ll_t ata_ll_io;
+    extern fs_io_ll_t usb_ll_io;
+    extern fs_io_t fat_io;
+    extern fs_io_t fatx_io;
+
+    if (fileio_register_driver('C', &fatx_io, &ata_ll_io, NULL, &ata_bus) != 0) {
+        printf_r("[FS] Error mounting drive C as FATX\n");
+    }
+    if (fileio_register_driver('E', &fatx_io, &ata_ll_io, NULL, &ata_bus) != 0) {
+        printf_r("[FS] Error mounting drive E as FATX\n");
+    }
+
+
+    directory_handle_t *dir;
+#if (0)
+    do {
+        vTaskDelay(pdMS_TO_TICKS(500));
+        dir = opendir("0:/");
+    } while (dir == NULL);
+    closedir(dir);
+
+
+
+
+    //reading in C:/doom1.wad and calc crc32
+    FILE *file = fopen("C:/doom1.wad", "rb");
+    if (file == NULL) {
+        printf_r("[FS] Failed to open file\n");
+    }
+
+    printf_r("[FS] Reading in doom1.wad\n");
+    uint8_t *buffer = pvPortMalloc(6 * 1024 * 1024);
+    memset(buffer, 0, 6 * 1024 * 1024);
+    size_t total_bytes_read = 0;
+    while (1) {
+        uint32_t random_chunk = 16384 + 1;
+        size_t bytes_read = fread(&buffer[total_bytes_read], 1, random_chunk, file);
+        if (bytes_read == 0) {
+            break;
+        }
+        total_bytes_read += bytes_read;
+        
+    }
+    uint32_t crc = crc32(buffer, total_bytes_read);
+    printf_r("[FS] bytes read %d CRC32: %08x\n", total_bytes_read, crc);
+    fclose(file);
+    vPortFree(buffer);
+
+    vTaskDelete(NULL);
+    return;
+#endif
+    
+
     doom_mutex = xSemaphoreCreateBinary();
     xTaskCreate(doom_task, "Doom!", configMINIMAL_STACK_SIZE * 2, NULL, THREAD_PRIORITY_NORMAL, NULL);
 
-    //opendir("0:/");
-    //fileio_register_io_handle('C', &fs_hw_ata, &fs_sw_fatfs);
-
-#if (0)
-    uint8_t *sector_buffer = pvPortMalloc(ATA_SECTOR_SIZE * 4096);
-    printf_r("\n[IDE] DMA Read read sector 3 of device 0\n");
-    int8_t error = ide_dma_read(&ata_bus, 0, 3, sector_buffer, 1);
-    if (error) {
-        printf_r("[IDE] Error reading sector 0\n");
-    } else {
-        for (uint32_t i = 0; i < 8; i++) {
-            printf_r("%02x", sector_buffer[i]);
+    // List files in C and print their names
+    #if (1)
+    dir = opendir("C:/");
+    if (dir != NULL) {
+        printf_r("[FS] Opened directory C\n");
+        directory_entry_t *entry;
+        while ((entry = readdir(dir)) != NULL) {
+            printf_r("[FS] Found file %s %d kB\n", entry->file_name, entry->file_size / 1024);
         }
-        printf_r("\n");
+        closedir(dir);
+    } else {
+        printf_r("[FS] Failed to open directory\n");
     }
 
-    printf_r("\n[IDE] DMA Read read sector %d of device 1\n", 0x8000 / 2048);
-    memset(sector_buffer, 0, ATAPI_SECTOR_SIZE);
-    error = ide_dma_read(&ata_bus, 1, 0x8000 / ATAPI_SECTOR_SIZE, sector_buffer, 1);
-    if (error) {
-        printf_r("[IDE] Error reading sector 0\n");
-    } else {
-        for (uint32_t i = 0; i < 8; i++) {
-            printf_r("%02x", sector_buffer[i]);
+    dir = opendir("E:/");
+    if (dir != NULL) {
+        printf_r("[FS] Opened directory E\n");
+        directory_entry_t *entry;
+        while ((entry = readdir(dir)) != NULL) {
+            printf_r("[FS] Found file %s %d kB\n", entry->file_name, entry->file_size / 1024);
         }
-        printf_r("\n");
+        closedir(dir);
+    } else {
+        printf_r("[FS] Failed to open directory\n");
     }
+    #endif
 
-#endif
+    #if (1)
+    do {
+        vTaskDelay(pdMS_TO_TICKS(500));
+        dir = opendir("0:/");
+    } while (dir == NULL);
+    if (dir != NULL) {
+        directory_entry_t *entry;
+        while ((entry = readdir(dir)) != NULL) {
+            printf_r("[FS] Found file %s %d kB\n", entry->file_name, entry->file_size / 1024);
+        }
+        closedir(dir);
+    } else {
+        printf_r("[FS] Failed to open directory\n");
+    }
+    #endif
+
+    xSemaphoreGive(doom_mutex);
+    vTaskDelete(NULL);
+    return;
+
     cpuid_eax_01 cpuid_info;
     cpu_read_cpuid(CPUID_VERSION_INFO, &cpuid_info.eax.flags, &cpuid_info.ebx.flags, &cpuid_info.ecx.flags,
                    &cpuid_info.edx.flags);

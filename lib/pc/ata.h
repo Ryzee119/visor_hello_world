@@ -141,16 +141,7 @@ typedef struct ata_bus
 int8_t ide_bus_init(uint16_t busmaster_base, uint16_t ctrl_base, uint16_t io_base, ata_bus_t *ata_bus);
 
 // Main read and write functions for IDE bus devices. Autommatically selects ATA or ATAPI based on the device type
-int8_t ide_pio_read(ata_bus_t *ata_bus, uint8_t device_index, uint32_t lba, void *buffer, uint32_t sector_count);
-int8_t ide_pio_write(ata_bus_t *ata_bus, uint8_t device_index, uint32_t lba, void *buffer, uint32_t sector_count);
 int8_t ide_dma_read(ata_bus_t *ata_bus, uint8_t device_index, uint32_t lba, void *buffer, uint32_t sector_count);
-int8_t ide_dma_write(ata_bus_t *ata_bus, uint8_t device_index, uint32_t lba, void *buffer, uint32_t sector_count);
+int8_t ide_dma_write(ata_bus_t *ata_bus, uint8_t device_index, uint32_t lba, const void *buffer, uint32_t sector_count);
 
-// Low level functions for ATA/ATAPI devices
-// If the command reads data from the device, set read to 1, otherwise 0
-// If not data is being transferred, set buffer to NULL, read and sector_count are ignored
-int8_t ata_pio_transfer(ata_bus_t *ata_bus, uint8_t device_index, ata_command_t *ata_command, uint8_t read,
-                        void *buffer);
-int8_t atapi_pio_transfer(ata_bus_t *ata_bus, uint8_t device_index, uint8_t atapi_command[12], uint8_t read,
-                          void *buffer, uint32_t sector_count);
 #endif // ATA_H
