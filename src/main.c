@@ -37,23 +37,34 @@ static void doom_task(void *parameters)
 
 ata_bus_t ata_bus;
 
-uint32_t crc32(const void *data, size_t length) {
-    const uint8_t *byteData = (const uint8_t *)data;
-    uint32_t crc = 0xFFFFFFFF; // Initial value
-
-    for (size_t i = 0; i < length; i++) {
-        crc ^= byteData[i]; // XOR byte into the least significant byte of crc
-
-        for (int j = 0; j < 8; j++) { // Process each bit
+uint32_t crc32_table[256];
+#define POLYNOMIAL 0xEDB88320
+void init_crc32_table() {
+    uint32_t crc;
+    for (uint32_t i = 0; i < 256; i++) {
+        crc = i;
+        for (int j = 0; j < 8; j++) {
             if (crc & 1) {
-                crc = (crc >> 1) ^ 0x04C11DB7; // Apply polynomial
+                crc = (crc >> 1) ^ POLYNOMIAL;
             } else {
                 crc >>= 1;
             }
         }
+        crc32_table[i] = crc;
     }
+}
 
-    return crc ^ 0xFFFFFFFF; // Final XOR to complete the calculation
+uint32_t crc32(const uint8_t *data, size_t length) {
+    static int init = 0;
+    if (!init) {
+        init_crc32_table();
+        init = 1;
+    }
+    uint32_t crc = 0xFFFFFFFF;  // Initial CRC value
+    while (length--) {
+        crc = (crc >> 8) ^ crc32_table[(crc ^ *data++) & 0xFF];
+    }
+    return crc ^ 0xFFFFFFFF;  // Final CRC value
 }
 
 static void freertos_entry(void *parameters)
@@ -78,11 +89,12 @@ static void freertos_entry(void *parameters)
     interrupts_init();
     usb_init();
     ide_bus_init(XBOX_ATA_BUSMASTER_BASE, XBOX_ATA_PRIMARY_BUS_CTRL_BASE, XBOX_ATA_PRIMARY_BUS_IO_BASE, &ata_bus);
-
+    
     extern fs_io_ll_t ata_ll_io;
     extern fs_io_ll_t usb_ll_io;
     extern fs_io_t fat_io;
     extern fs_io_t fatx_io;
+    extern fs_io_t iso9660_io;
 
     if (fileio_register_driver('C', &fatx_io, &ata_ll_io, NULL, &ata_bus) != 0) {
         printf_r("[FS] Error mounting drive C as FATX\n");
@@ -90,18 +102,54 @@ static void freertos_entry(void *parameters)
     if (fileio_register_driver('E', &fatx_io, &ata_ll_io, NULL, &ata_bus) != 0) {
         printf_r("[FS] Error mounting drive E as FATX\n");
     }
+    if (fileio_register_driver('D', &iso9660_io, &ata_ll_io, NULL, &ata_bus) != 0) {
+        printf_r("[FS] Error mounting drive D as ISO9660\n");
+    }
 
+    doom_mutex = xSemaphoreCreateBinary();
+    xTaskCreate(doom_task, "Doom!", configMINIMAL_STACK_SIZE * 2, NULL, THREAD_PRIORITY_NORMAL, NULL);
 
     directory_handle_t *dir;
-#if (0)
-    do {
-        vTaskDelay(pdMS_TO_TICKS(500));
-        dir = opendir("0:/");
-    } while (dir == NULL);
-    closedir(dir);
+    // List files in C and print their names
+    #if (1)
+    dir = opendir("C:/");
+    if (dir != NULL) {
+        printf_r("[FS] Opened directory C\n");
+        directory_entry_t *entry;
+        while ((entry = readdir(dir)) != NULL) {
+            printf_r("[FS] Found file %s %d B\n", entry->file_name, entry->file_size);
+        }
+        printf_r("[FS] Done listing files in C. Closing Dir\n");
+        closedir(dir);
+    } else {
+        printf_r("[FS] Failed to open directory\n");
+    }
+    printf_r("[FS] Done listing files in C\n");
 
+    dir = opendir("E:/");
+    if (dir != NULL) {
+        printf_r("[FS] Opened directory E\n");
+        directory_entry_t *entry;
+        while ((entry = readdir(dir)) != NULL) {
+            printf_r("[FS] Found file %s %d B\n", entry->file_name, entry->file_size);
+        }
+        closedir(dir);
+    } else {
+        printf_r("[FS] Failed to open directory\n");
+    }
 
-
+    dir = opendir("D:/");
+    if (dir != NULL) {
+        printf_r("[FS] Opened directory D\n");
+        directory_entry_t *entry;
+        while ((entry = readdir(dir)) != NULL) {
+            printf_r("[FS] Found file %s %d B\n", entry->file_name, entry->file_size);
+        }
+        closedir(dir);
+    } else {
+        printf_r("[FS] Failed to open directory\n");
+    }
+    #endif
 
     //reading in C:/doom1.wad and calc crc32
     FILE *file = fopen("C:/doom1.wad", "rb");
@@ -113,8 +161,9 @@ static void freertos_entry(void *parameters)
     uint8_t *buffer = pvPortMalloc(6 * 1024 * 1024);
     memset(buffer, 0, 6 * 1024 * 1024);
     size_t total_bytes_read = 0;
+    uint32_t tick_start = xTaskGetTickCount();
     while (1) {
-        uint32_t random_chunk = 16384 + 1;
+        uint32_t random_chunk = 16384;
         size_t bytes_read = fread(&buffer[total_bytes_read], 1, random_chunk, file);
         if (bytes_read == 0) {
             break;
@@ -122,55 +171,21 @@ static void freertos_entry(void *parameters)
         total_bytes_read += bytes_read;
         
     }
+    uint32_t tick_end = xTaskGetTickCount();
     uint32_t crc = crc32(buffer, total_bytes_read);
-    printf_r("[FS] bytes read %d CRC32: %08x\n", total_bytes_read, crc);
+    printf_r("[FS] bytes read %d CRC32: %08x, took %d ms\n", total_bytes_read, crc, tick_end - tick_start);
     fclose(file);
     vPortFree(buffer);
 
-    vTaskDelete(NULL);
-    return;
-#endif
-    
-
-    doom_mutex = xSemaphoreCreateBinary();
-    xTaskCreate(doom_task, "Doom!", configMINIMAL_STACK_SIZE * 2, NULL, THREAD_PRIORITY_NORMAL, NULL);
-
-    // List files in C and print their names
-    #if (1)
-    dir = opendir("C:/");
-    if (dir != NULL) {
-        printf_r("[FS] Opened directory C\n");
-        directory_entry_t *entry;
-        while ((entry = readdir(dir)) != NULL) {
-            printf_r("[FS] Found file %s %d kB\n", entry->file_name, entry->file_size / 1024);
-        }
-        closedir(dir);
-    } else {
-        printf_r("[FS] Failed to open directory\n");
-    }
-
-    dir = opendir("E:/");
-    if (dir != NULL) {
-        printf_r("[FS] Opened directory E\n");
-        directory_entry_t *entry;
-        while ((entry = readdir(dir)) != NULL) {
-            printf_r("[FS] Found file %s %d kB\n", entry->file_name, entry->file_size / 1024);
-        }
-        closedir(dir);
-    } else {
-        printf_r("[FS] Failed to open directory\n");
-    }
-    #endif
-
-    #if (1)
+    #if (0)
     do {
-        vTaskDelay(pdMS_TO_TICKS(500));
+        vTaskDelay(pdMS_TO_TICKS(5000));
         dir = opendir("0:/");
     } while (dir == NULL);
     if (dir != NULL) {
         directory_entry_t *entry;
         while ((entry = readdir(dir)) != NULL) {
-            printf_r("[FS] Found file %s %d kB\n", entry->file_name, entry->file_size / 1024);
+            printf_r("[FS] Found file %s %d B\n", entry->file_name, entry->file_size);
         }
         closedir(dir);
     } else {

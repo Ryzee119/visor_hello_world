@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
 
 #include "idt.h"
+#include "cpu.h"
 #include <stdint.h>
 #include <stdio.h>
 

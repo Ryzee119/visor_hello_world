@@ -4,7 +4,6 @@
 
 int open(const char *path, int flags, ...)
 {
-    printf_r("Opening %s\n", path);
     char drive_letter = path[0];
 
     file_io_driver_t *driver = fileio_find_driver(drive_letter);
@@ -20,7 +19,7 @@ int open(const char *path, int flags, ...)
     fp->driver = driver;
 
     xSemaphoreTake(fp->driver->mutex, portMAX_DELAY);
-    fp->user_handle = fp->driver->io->open(path, flags);
+    fp->user_handle = fp->driver->io->open(driver->handle, path, flags);
     xSemaphoreGive(fp->driver->mutex);
     if (fp->user_handle == NULL) {
         vPortFree(fp);
@@ -95,7 +94,7 @@ directory_handle_t *opendir(const char *path)
     dir->entry.file_size = 0;
     dir->driver = driver;
     xSemaphoreTake(driver->mutex, portMAX_DELAY);
-    dir->user_handle = dir->driver->io->opendir(path);
+    dir->user_handle = dir->driver->io->opendir(dir->driver->handle, path);
     xSemaphoreGive(driver->mutex);
     if (dir->user_handle == NULL) {
         vPortFree(dir);
@@ -126,7 +125,7 @@ static file_io_driver_t *fs_driver_head = NULL;
 file_io_driver_t *fileio_find_driver(char drive_letter)
 {
     if (isalnum(drive_letter) == 0) {
-        printf_r("Invalid drive letter\n");
+        printf_r("Invalid drive letter %c(0x%02x)\n", drive_letter, drive_letter);
         return NULL;
     }
     drive_letter = toupper(drive_letter);
@@ -165,8 +164,6 @@ int8_t fileio_register_driver(const char drive_letter, fs_io_t *io, fs_io_ll_t *
     }
     xSemaphoreGive(driver->mutex);
 
-    void *user_data;
-
     taskENTER_CRITICAL();
 
     if (fs_driver_head == NULL) {
@@ -182,7 +179,8 @@ int8_t fileio_register_driver(const char drive_letter, fs_io_t *io, fs_io_ll_t *
 
     taskEXIT_CRITICAL();
 
-    if (driver->io_ll->init(driver->drive_letter, &driver->ll_handle, ll_arg) != 0) {
+    user_fs_ll_handle_t *ll_handle = driver->io_ll->init(driver, ll_arg);
+    if (ll_handle == NULL) {
         printf_r("Failed to init low-level driver\n");
         vSemaphoreDelete(driver->mutex);
         vPortFree(driver);
@@ -193,9 +191,10 @@ int8_t fileio_register_driver(const char drive_letter, fs_io_t *io, fs_io_ll_t *
         }
         return -1;
     }
+    driver->ll_handle = ll_handle;
 
-    if (driver->io->init(driver, &user_data, arg) != 0) {
-        printf_r("Failed to init high-level driver\n");
+    user_fs_handle_t *handle = driver->io->init(driver, arg);
+    if (handle == NULL) {
         vSemaphoreDelete(driver->mutex);
         vPortFree(driver);
         if (prev != NULL) {
@@ -205,7 +204,7 @@ int8_t fileio_register_driver(const char drive_letter, fs_io_t *io, fs_io_ll_t *
         }
         return -1;
     }
-    driver->user_data = user_data;
+    driver->handle = handle;
 
     return 0;
 }
@@ -226,8 +225,8 @@ int8_t fileio_unregister_driver(const char drive_letter)
     }
 
     if (driver) {
-        driver->io->deinit(driver->drive_letter, driver->user_data);
-        driver->io_ll->deinit(driver->drive_letter, driver->ll_handle);
+        driver->io->deinit(driver->handle);
+        driver->io_ll->deinit(driver->ll_handle);
         if (prev == NULL) {
             fs_driver_head = driver->next;
         } else {

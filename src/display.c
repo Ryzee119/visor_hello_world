@@ -28,6 +28,28 @@ void display_clear()
     cursor_y = MARGIN;
 }
 
+void display_get_cursor(uint32_t *x, uint32_t *y)
+{
+    if (x) {
+        *x = cursor_x;
+    }
+    if (y) {
+        *y = cursor_y;
+    }
+}
+
+void display_set_cursor(uint32_t x, uint32_t y)
+{
+    if (x < MARGIN) {
+        x = MARGIN;
+    }
+    if (y < MARGIN) {
+        y = MARGIN;
+    }
+    cursor_x = x;
+    cursor_y = y;
+}
+
 void display_write_char(const char c)
 {
     const display_information_t *display = xbox_video_get_display_information();
@@ -62,6 +84,17 @@ void display_write_char(const char c)
                             uint32_t *pixel = &fb32[(cursor_y + h) * display->width + cursor_x + w];
                             *pixel = 0xFFFFFFFF;
                         }
+                    } else {
+                        // Draw pixel inverted colour to what is already there
+                        if (display->bytes_per_pixel == 2) {
+                            uint16_t *fb16 = display->frame_buffer;
+                            uint16_t *pixel = &fb16[(cursor_y + h) * display->width + cursor_x + w];
+                            *pixel = DISPLAY_BG_COLOR;
+                        } else {
+                            uint32_t *fb32 = display->frame_buffer;
+                            uint32_t *pixel = &fb32[(cursor_y + h) * display->width + cursor_x + w];
+                            *pixel = DISPLAY_BG_COLOR;
+                        }
                     }
                 }
                 glyph++; // Next line of glyph
@@ -78,6 +111,19 @@ void display_write_char(const char c)
         // New page
         if (cursor_y + UNSCII_FONT_HEIGHT >= (display->height - MARGIN)) {
             display_clear();
+            return;
+            const display_information_t *display = xbox_video_get_display_information();
+            if (!display->frame_buffer) {
+                return;
+            }
+
+            const uint32_t pixel_total = display->width * display->height * display->bytes_per_pixel;
+            const uint32_t pixel_per_row =  display->width * UNSCII_FONT_HEIGHT * display->bytes_per_pixel;
+            memcpy(display->frame_buffer, display->frame_buffer + pixel_per_row, pixel_total - pixel_per_row);
+            memset(display->frame_buffer + pixel_total - pixel_per_row, DISPLAY_BG_COLOR, pixel_per_row);
+            cursor_y -= UNSCII_FONT_HEIGHT;
+            cursor_x = MARGIN;
+
         }
     }
 }

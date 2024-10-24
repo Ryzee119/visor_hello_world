@@ -330,6 +330,12 @@ void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, voi
 
     xbox_gpu_output32(PRAMDAC, 0x6A0, 0x01);
     xbox_gpu_output_crtc(0x28, ((bpp == 4) ? 0x83 : 0x82));
+
+    for(int i = 0; i < 3; i++) {
+		while((mmio_input_byte(PCI_GPU_MEMORY_REGISTER_BASE_0 + 0x006013da) & 0x08) != 0x00);
+		while((mmio_input_byte(PCI_GPU_MEMORY_REGISTER_BASE_0 + 0x006013da) & 0x08) == 0x00);
+	}
+
     xbox_gpu_output32(PRAMDAC, 0x880, (pramdac_index == 7) ? 0x21101101 : 0x21101100);
 
     xbox_timer_spin_wait(XBOX_TIMER_US_TO_TICKS(2));

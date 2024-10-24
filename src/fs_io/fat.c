@@ -5,37 +5,39 @@
 
 #include "main.h"
 
-int fat_init(file_io_driver_t *driver, void **user_data, void *arg)
+user_fs_handle_t *fat_init(file_io_driver_t *driver, void *arg)
 {
     (void)arg;
     
     char drive_letter = driver->drive_letter;
 
-    *user_data = pvPortMalloc(sizeof(FATFS));
-    if (*user_data == NULL) {
-        return -1;
+    user_fs_handle_t *handle = pvPortMalloc(sizeof(FATFS));
+    if (handle == NULL) {
+        return NULL;
     }
-    FATFS *fs = (FATFS *)*user_data;
+    FATFS *fs = (FATFS *)handle;
 
     char path[3] = {drive_letter, ':', '\0'};
     if (f_mount(fs, path, 1) != FR_OK) {
-        vPortFree(*user_data);
+        vPortFree(handle);
         printf_r("[FATFS] Failed to mount drive %c\n", drive_letter);
-        return -1;
+        return NULL;
     }
 
-    return 0;
+    return handle;
 }
 
-void fat_deinit(char drive_letter, void *user_data)
+void fat_deinit(user_fs_handle_t *handle)
 {
-    char path[3] = {drive_letter, ':', '\0'};
+    FATFS *fs = (FATFS *)handle;
+    char path[3] = {'0' + fs->pdrv, ':', '\0'};
     f_unmount(path);
-    vPortFree(user_data);
+    vPortFree(handle);
 }
 
-user_file_handle_t *fat_open(const char *path, int flags)
+user_file_handle_t *fat_open(user_fs_handle_t *handle, const char *path, int flags)
 {
+    (void) handle;
     BYTE mode = 0;
     if ((flags & O_RDONLY) == O_RDONLY) {
         mode = FA_READ;
@@ -95,8 +97,9 @@ int fat_close(user_file_handle_t *fd)
     return 0;
 }
 
-user_dir_handle_t *fat_opendir(const char *path)
+user_dir_handle_t *fat_opendir(user_fs_handle_t *handle, const char *path)
 {
+    (void) handle;
     DIR *dir = pvPortMalloc(sizeof(DIR));
     if (dir == NULL) {
         return NULL;

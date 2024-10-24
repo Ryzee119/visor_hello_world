@@ -84,21 +84,21 @@ void tuh_msc_umount_cb(uint8_t dev_addr)
     }
 }
 
-static int8_t usb_disk_init(char drive_letter, fs_user_ll_handle_t **handle, void *arg)
+static user_fs_ll_handle_t *usb_disk_init(file_io_driver_t *driver, void *arg)
 {
     (void)arg;
 
     for (uint8_t i = 0; i < CFG_TUH_MSC; i++) {
-        if (msc_device[i].drive_letter == drive_letter) {
-            *handle = (fs_user_ll_handle_t *)&msc_device[i];
-            return 0;
+        if (msc_device[i].drive_letter == driver->drive_letter) {
+            user_fs_ll_handle_t *handle = (user_fs_ll_handle_t *)&msc_device[i];
+            return handle;
         }
     }
 
-    return -1;
+    return NULL;
 }
 
-static void usb_disk_deinit(char drive_letter, fs_user_ll_handle_t *handle)
+static void usb_disk_deinit(user_fs_ll_handle_t *handle)
 {
     msc_device_t *msc = (msc_device_t *)handle;
     msc->dev_addr = 0;
@@ -106,7 +106,7 @@ static void usb_disk_deinit(char drive_letter, fs_user_ll_handle_t *handle)
     return;
 }
 
-static ssize_t usb_disk_read(fs_user_ll_handle_t *handle, void *buffer, uint64_t sector_offset, size_t sector_count)
+static int8_t usb_disk_read(user_fs_ll_handle_t *handle, void *buffer, uint64_t sector_offset, size_t sector_count)
 {
     msc_device_t *msc = (msc_device_t *)handle;
     char drive_letter = msc->drive_letter;
@@ -126,7 +126,7 @@ static ssize_t usb_disk_read(fs_user_ll_handle_t *handle, void *buffer, uint64_t
     return -1;
 }
 
-static ssize_t usb_disk_write(fs_user_ll_handle_t *handle, const void *buffer, uint64_t sector_offset,
+static int8_t usb_disk_write(user_fs_ll_handle_t *handle, const void *buffer, uint64_t sector_offset,
                               size_t sector_count)
 {
     msc_device_t *msc = (msc_device_t *)handle;
@@ -147,7 +147,7 @@ static ssize_t usb_disk_write(fs_user_ll_handle_t *handle, const void *buffer, u
     return -1;
 }
 
-static int8_t usb_disk_ioctl(fs_user_ll_handle_t *handle, fs_ioctrl_cmd_t cmd, void *buff)
+static int8_t usb_disk_ioctl(user_fs_ll_handle_t *handle, fs_ioctrl_cmd_t cmd, void *buff)
 {
     msc_device_t *msc = (msc_device_t *)handle;
     char drive_letter = msc->drive_letter;

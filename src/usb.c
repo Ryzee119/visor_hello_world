@@ -3,7 +3,7 @@
 void tusb_host_task0(void *parameters)
 {
     (void)parameters;
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    vTaskDelay(pdMS_TO_TICKS(500));
     tusb_init();
     while (1) {
         tuh_task();

@@ -22,7 +22,7 @@ typedef struct fatx_fs_dir
     struct fatx_fs *fs;
     struct fatx_dir dir;
     struct fatx_dirent entry;
-    const char *path;
+    char path[255];
 } fatx_dir_t;
 
 typedef struct fatx_extra_data
@@ -31,28 +31,28 @@ typedef struct fatx_extra_data
     uint64_t seek_offset;
     uint64_t cached_sector;
     uint16_t sector_size;
-    uint8_t sector_cache[];
+    uint8_t sector_cache[] __attribute__((aligned(4)));
 } fatx_extra_data_t;
 
-int fatx_fs_init(file_io_driver_t *driver, void **user_data, void *arg)
+user_fs_handle_t *fatx_fs_init(file_io_driver_t *driver, void *arg)
 {
     (void)arg;
 
     char drive_letter = driver->drive_letter;
 
-    *user_data = pvPortMalloc(sizeof(struct fatx_fs));
-    if (*user_data == NULL) {
-        return -1;
+    user_fs_handle_t *handle = pvPortMalloc(sizeof(struct fatx_fs));
+    if (handle == NULL) {
+        return NULL;
     }
 
     uint16_t sector_size;
     driver->io_ll->ioctrl(driver->ll_handle, FS_IO_GET_SECTOR_SIZE, &sector_size);
 
-    struct fatx_fs *fatx = (struct fatx_fs *)(*user_data);
-    fatx->user_data = pvPortMalloc(sizeof(fatx_extra_data_t) + sector_size);
+    struct fatx_fs *fatx = (struct fatx_fs *)(handle);
+    fatx->user_data = pvPortMalloc(sizeof(fatx_extra_data_t) + 2048);
     if (fatx->user_data == NULL) {
         vPortFree(fatx);
-        return -1;
+        return NULL;
     }
 
     fatx_extra_data_t *fatx_extra_data = (fatx_extra_data_t *)fatx->user_data;
@@ -66,21 +66,23 @@ int fatx_fs_init(file_io_driver_t *driver, void **user_data, void *arg)
     uint64_t partition_offset, partition_size;
     if (fatx_drive_to_offset_size(tolower(drive_letter), &partition_offset, &partition_size) != FATX_STATUS_SUCCESS) {
         printf("[FATX] Failed to get partition offset and size\n");
+        vPortFree(fatx->user_data);
         vPortFree(fatx);
-        return -1;
+        return NULL;
     }
 
     if (fatx_open_device(fatx, path, partition_offset, partition_size, sector_size, FATX_READ_FROM_SUPERBLOCK) !=
         FATX_STATUS_SUCCESS) {
         printf("[FATX] Failed to mount drive %c\n", drive_letter);
+        vPortFree(fatx->user_data);
         vPortFree(fatx);
-        return -1;
+        return NULL;
     }
 
-    return 0;
+    return handle;
 }
 
-void fatx_fs_deinit(char drive_letter, void *user_data)
+void fatx_fs_deinit(user_fs_handle_t *user_data)
 {
     struct fatx_fs *fatx = (struct fatx_fs *)(user_data);
     fatx_close_device(fatx);
@@ -88,16 +90,9 @@ void fatx_fs_deinit(char drive_letter, void *user_data)
     vPortFree(fatx);
 }
 
-user_file_handle_t *fatx_fs_open(const char *path, int flags)
+user_file_handle_t *fatx_fs_open(user_fs_handle_t *handle, const char *path, int flags)
 {
-    char drive_letter = path[0];
-
-    file_io_driver_t *driver = fileio_find_driver(drive_letter);
-    if (driver == NULL) {
-        return NULL;
-    }
-
-    struct fatx_fs *fs = (struct fatx_fs *)driver->user_data;
+    struct fatx_fs *fs = (struct fatx_fs *)handle;
 
     fatx_file_t *file = pvPortMalloc(sizeof(fatx_file_t));
     if (file == NULL) {
@@ -107,6 +102,8 @@ user_file_handle_t *fatx_fs_open(const char *path, int flags)
     file->fs = fs;
     file->cursor = 0;
     file->flags = flags;
+
+    // Drop the drive letter and colon from the path
     strncpy(file->path, path + 2, sizeof(file->path));
 
     if (flags & O_CREAT) {
@@ -164,7 +161,6 @@ ssize_t fatx_fs_read(user_file_handle_t *fd, void *buffer, size_t count)
     ssize_t bytes_transferred = fatx_read(fs, file->path, file->cursor, count, buffer);
     if (bytes_transferred > 0) {
         file->cursor += bytes_transferred;
-       //printf("Final cursor = %u\n", file->cursor);
     }
     return bytes_transferred;
 }
@@ -187,7 +183,7 @@ ssize_t fatx_fs_write(user_file_handle_t *fd, const void *buffer, size_t count)
 
 off_t fatx_fs_lseek(user_file_handle_t *fd, off_t offset, int whence)
 {
-    
+
     fatx_file_t *file = (fatx_file_t *)fd;
     struct fatx_fs *fs = file->fs;
     uint32_t file_end = file->attr.file_size;
@@ -241,27 +237,18 @@ int fatx_fs_close(user_file_handle_t *fd)
     return 0;
 }
 
-user_dir_handle_t *fatx_fs_opendir(const char *path)
+user_dir_handle_t *fatx_fs_opendir(user_fs_handle_t *handle, const char *path)
 {
-    char drive_letter = path[0];
-    char fatx_path[3] = {'/', drive_letter, '\0'};
-
-    file_io_driver_t *driver = fileio_find_driver(drive_letter);
-    if (driver == NULL) {
-        return NULL;
-    }
-
-    struct fatx_fs *fs = (struct fatx_fs *)driver->user_data;
+    struct fatx_fs *fs = (struct fatx_fs *)handle;
 
     fatx_dir_t *fatx_dir = pvPortMalloc(sizeof(fatx_dir_t));
     if (fatx_dir == NULL) {
         return NULL;
     }
 
-    fatx_dir->fs = fs;
-
     // Drop the drive letter and colon from the path
-    fatx_dir->path = path + 2;
+    strncpy(fatx_dir->path, path + 2, sizeof(fatx_dir->path));
+    fatx_dir->fs = fs;
 
     int result = fatx_open_dir(fs, fatx_dir->path, &fatx_dir->dir);
     if (result != FATX_STATUS_SUCCESS) {
@@ -279,15 +266,16 @@ struct directory_entry *fatx_fs_readdir(user_dir_handle_t *handle, struct direct
     int status;
 
     do {
+        memset(&attr, 0, sizeof(attr));
         status = fatx_read_dir(fatx_dir->fs, &fatx_dir->dir, &fatx_dir->entry, &attr, &result);
         fatx_next_dir_entry(fatx_dir->fs, &fatx_dir->dir);
     } while (status == FATX_STATUS_FILE_DELETED);
 
-    if (status != FATX_STATUS_SUCCESS) {
+    if (status != FATX_STATUS_SUCCESS || result == NULL) {
         return NULL;
     }
 
-    strncpy(entry->file_name, fatx_dir->entry.filename, sizeof(entry->file_name));
+    strncpy(entry->file_name, result->filename, sizeof(entry->file_name));
     entry->file_size = attr.file_size;
     return entry;
 }
@@ -325,7 +313,9 @@ int fatx_dev_seek_cluster(struct fatx_fs *fs, size_t cluster, off_t offset)
     uint64_t pos;
 
     status = fatx_cluster_number_to_byte_offset(fs, cluster, &pos);
-    if (status) return status;
+    if (status) {
+        return status;
+    }
 
     pos += offset;
 
@@ -340,10 +330,8 @@ size_t fatx_dev_read(struct fatx_fs *fs, void *buf, size_t size, size_t items)
     const uint32_t lba_offset = seek_offset % sector_size;
     uint64_t current_lba = seek_offset / sector_size;
     uint64_t bytes_remaining = size * items;
-
     uint8_t *buf8 = (uint8_t *)buf;
 
-#if (1)
     // Unaligned or partial read for first sector
     if (lba_offset != 0) {
         if (fatx_extra_data->cached_sector != current_lba) {
@@ -359,7 +347,6 @@ size_t fatx_dev_read(struct fatx_fs *fs, void *buf, size_t size, size_t items)
         buf8 += chunk;
         current_lba++;
     }
-    
 
     // Sector aligned read
     if (bytes_remaining >= sector_size) {
@@ -376,7 +363,7 @@ size_t fatx_dev_read(struct fatx_fs *fs, void *buf, size_t size, size_t items)
     // Partial read for last sector
     if (bytes_remaining > 0) {
 
-        //printf("[FATX] Reading last unaligned %llu bytes from LBA %llu\n", bytes_remaining, current_lba);
+        // printf("[FATX] Reading last unaligned %llu bytes from LBA %llu\n", bytes_remaining, current_lba);
         assert(bytes_remaining < sector_size);
         if (fatx_extra_data->cached_sector != current_lba) {
             fatx_extra_data->driver->io_ll->read(fatx_extra_data->driver->ll_handle, fatx_extra_data->sector_cache,
@@ -390,7 +377,6 @@ size_t fatx_dev_read(struct fatx_fs *fs, void *buf, size_t size, size_t items)
     assert(bytes_remaining == 0);
 
     fatx_extra_data->seek_offset = size * items;
-#endif
     return items;
 }
 

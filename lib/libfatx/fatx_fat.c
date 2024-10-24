@@ -194,7 +194,7 @@ int fatx_read_fat(struct fatx_fs *fs, size_t index, fatx_fat_entry *entry)
 {
     struct fatx_cache *cache = &fs->fat_cache;
 
-    //fatx_debug(fs, "fatx_read_fat(index=%zd)\n", index);
+    fatx_debug(fs, "fatx_read_fat(index=%zd)\n", index);
 
     if (!fatx_cluster_valid(fs, index))
     {

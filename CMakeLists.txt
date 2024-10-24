@@ -18,6 +18,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Os -ffunction-sections -fdata-sections -fom
 #set(_FORMAT_DEFAULT_INTEGER ON) #Smaller, no float support
 set(_FORMAT_DEFAULT_DOUBLE ON)
 add_compile_definitions(_WANT_FAST_BUFIO)
+#add_compile_definitions(PREFER_SIZE_OVER_SPEED) # Doesnt make a big difference
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/picolibc)
 
 #arith64 - prevents having to link libgcc for a couple functions
@@ -53,6 +54,11 @@ add_library(fatfx INTERFACE)
 list(REMOVE_ITEM FATX_SOURCES ${CMAKE_CURRENT_LIST_DIR}/lib/libfatx/fatx_dev.c)
 target_sources(fatfx INTERFACE ${FATX_SOURCES})
 
+#ISO9660
+set(ISO9660_DIR ${CMAKE_CURRENT_LIST_DIR}/lib/lib9660)
+add_library(iso9660 INTERFACE)
+target_sources(iso9660 INTERFACE ${ISO9660_DIR}/lib9660.c)
+
 #Midi
 add_library(midi INTERFACE)
 target_sources(midi INTERFACE ${CMAKE_CURRENT_LIST_DIR}/lib/midi/midiplay.c ${CMAKE_CURRENT_LIST_DIR}/lib/midi/synth.c)
@@ -64,7 +70,7 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/xbox xbox)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib/pc pc)
 
 # Link the libraries
-target_link_libraries(${OUTPUT_NAME} PRIVATE c arith64 freertos_kernel pc xbox tinyusb xinput_host fatfs fatfx midi)
+target_link_libraries(${OUTPUT_NAME} PRIVATE c arith64 freertos_kernel pc xbox tinyusb xinput_host fatfs fatfx iso9660 midi)
 
 # Create a binary from the elf
 add_custom_command(TARGET ${OUTPUT_NAME} POST_BUILD

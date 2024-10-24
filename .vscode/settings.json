@@ -72,6 +72,8 @@
         "time.h": "c",
         "string.h": "c",
         "fileio.h": "c",
-        "fcntl.h": "c"
+        "fcntl.h": "c",
+        "deque": "c",
+        "vector": "c"
     }
 }

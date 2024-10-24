@@ -48,11 +48,17 @@ static void dooom_gettime(int *sec, int *usec)
 
 static void *dooom_open(const char *filename, const char *mode)
 {
+    if (filename == NULL) {
+        return NULL;
+    }
+    printf_r("[DOOM] Opening file %s\n", filename);
+    
     return fopen(filename, mode);
 }
 
 static void dooom_close(void *handle)
 {
+    printf("[DOOM] Closing file\n");
     fclose((FILE *)handle);
 }
 
@@ -91,22 +97,25 @@ void doom_memset(void *ptr, int value, int num)
     memset(ptr, value, num);
 }
 
-static char wad_dir[] = "0:";
+static char wad_dir[256];
 char *dooom_getenv(const char *var)
 {
     if (strcmp(var, "DOOMWADDIR") == 0) {
-        return wad_dir;
+        return "E:/doom";
     }
+    if (strcmp(var, "HOME") == 0) {
+        return "E:/doom";
+    }
+    printf_r("[DOOM] Unknown env var %s\n", var);
     return 0;
 }
 
 int doom_entry(const char *wad_path)
 {
-    static char *args[] = {"doom", "-iwad", NULL, NULL};
-    int argc = 3;
-    args[2] = (char *)wad_path;
+    const char *args[] = {"doom"};
+    int argc = 1;
 
-    wad_dir[0] = wad_path[0];
+    strcpy(wad_dir, wad_path);
 
     doom_set_print(dooom_printf);
     doom_set_malloc(dooom_malloc, dooom_free);
@@ -116,7 +125,7 @@ int doom_entry(const char *wad_path)
 
     printf_r("[DOOM] Initializing...\n");
 
-    doom_init(argc, args, 0);
+    doom_init(argc, (char **)args, 0);
     doom_initd = 1;
 
     doom_logic_mutex = xSemaphoreCreateMutex();
@@ -141,6 +150,7 @@ int doom_entry(const char *wad_path)
         uint32_t line = 0, flipflop = 0;
         const uint32_t FINAL_WIDTH = SCREENWIDTH * 2;
 
+#if (1)
         for (int pixel = 0; pixel < SCREENWIDTH * SCREENHEIGHT; pixel++) {
             uint32_t index = indexed_framebuffer[pixel] * 3;
 
@@ -176,7 +186,25 @@ int doom_entry(const char *wad_path)
                 line++;
             }
         }
+#endif
 
+        static int frames = 0;
+        static uint32_t start_ticks_fps = 0;
+        static uint32_t time = 0;
+        if (frames++ == 9) {
+            uint32_t end_ticks = xTaskGetTickCount();
+            time = end_ticks - start_ticks_fps;
+            start_ticks_fps = xTaskGetTickCount();
+            frames = 0;
+        }
+
+        uint32_t x,y;
+        display_get_cursor(&x, &y);
+        display_set_cursor(0, 0);
+        time = MAX(time, 1);
+        printf("%d (%d)\n", time, 10000/time);
+        display_set_cursor(x, y);
+    
         xbox_video_set_option(XBOX_VIDEO_OPTION_FRAMEBUFFER, final_screen_buffer);
         xTaskDelayUntil(&start_ticks, pdMS_TO_TICKS(1000 / 35));
     }

@@ -6,13 +6,13 @@ typedef struct ata_ll_data
     uint8_t drive_index;
 } ata_ll_data_t;
 
-static int8_t ata_disk_init(char drive_letter, fs_user_ll_handle_t **handle, void *arg)
+static user_fs_ll_handle_t *ata_disk_init(file_io_driver_t *driver, void *arg)
 {
-    drive_letter = toupper(drive_letter);
+    char drive_letter = toupper(driver->drive_letter);
 
-    *handle = pvPortMalloc(sizeof(ata_ll_data_t));
-    if (*handle == NULL) {
-        return -1;
+    user_fs_ll_handle_t *handle = pvPortMalloc(sizeof(ata_ll_data_t));
+    if (handle == NULL) {
+        return NULL;
     }
 
     // First half of the alphabet will use drive index 0, second half will use drive index 1
@@ -27,33 +27,32 @@ static int8_t ata_disk_init(char drive_letter, fs_user_ll_handle_t **handle, voi
         drive_index = 1;
     }
 
-    ata_ll_data_t *ata_ll_data = (ata_ll_data_t *)*handle;
+    ata_ll_data_t *ata_ll_data = (ata_ll_data_t *)handle;
     ata_ll_data->drive_index = drive_index;
     ata_ll_data->ata_bus = (ata_bus_t *)arg;
-    return 0;
+    return handle;
 }
 
-static void ata_disk_deinit(char drive_letter, fs_user_ll_handle_t *handle)
+static void ata_disk_deinit(user_fs_ll_handle_t *handle)
 {
-    (void)drive_letter;
     vPortFree(handle);
     return;
 }
 
-static ssize_t ata_disk_read(fs_user_ll_handle_t *handle, void *buffer, uint64_t sector_offset, size_t sector_count)
+static int8_t ata_disk_read(user_fs_ll_handle_t *handle, void *buffer, uint64_t sector_offset, size_t sector_count)
 {
     ata_ll_data_t *ata_ll_data = (ata_ll_data_t *)handle;
     return ide_dma_read(ata_ll_data->ata_bus, ata_ll_data->drive_index, sector_offset, buffer, sector_count);
 }
 
-static ssize_t ata_disk_write(fs_user_ll_handle_t *handle, const void *buffer, uint64_t sector_offset,
+static int8_t ata_disk_write(user_fs_ll_handle_t *handle, const void *buffer, uint64_t sector_offset,
                               size_t sector_count)
 {
     ata_ll_data_t *ata_ll_data = (ata_ll_data_t *)handle;
     return ide_dma_write(ata_ll_data->ata_bus, ata_ll_data->drive_index, sector_offset, buffer, sector_count);
 }
 
-static int8_t ata_disk_ioctl(fs_user_ll_handle_t *handle, fs_ioctrl_cmd_t cmd, void *buff)
+static int8_t ata_disk_ioctl(user_fs_ll_handle_t *handle, fs_ioctrl_cmd_t cmd, void *buff)
 {
     ata_ll_data_t *ata_ll_data = (ata_ll_data_t *)handle;
     ata_bus_t *ata_bus = ata_ll_data->ata_bus;

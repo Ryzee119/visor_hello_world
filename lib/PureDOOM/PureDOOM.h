@@ -9811,9 +9811,10 @@ void FindResponseFile(void)
 {
     int i;
 
-    for (i = 1; i < myargc; i++)
+    for (i = 1; i < myargc; i++) {
         if (myargv[i][0] == '@')
         {
+
             void* handle = 0;
             int size;
             int k;
@@ -9881,6 +9882,7 @@ void FindResponseFile(void)
 
             break;
         }
+    }
 }
 
 
@@ -37311,6 +37313,8 @@ void R_InitColormaps(void)
 //
 void R_InitData(void)
 {
+    extern char *reloadname;
+    reloadname = NULL;
     R_InitTextures();
     doom_print("\nInitTextures");
     R_InitFlats();

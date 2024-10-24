@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include <ctype.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -47,6 +48,9 @@ int printf_r(const char *format, ...);
 void display_init(void);
 void display_write_char(const char c);
 void display_clear(void);
+void display_get_cursor(uint32_t *x, uint32_t *y);
+void display_set_cursor(uint32_t x, uint32_t y);
+void display_write_char(const char c);
 
 void usb_init(void);
 void interrupts_init(void);
