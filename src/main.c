@@ -18,6 +18,11 @@ void system_yield(uint32_t ms)
     }
 }
 
+uint32_t system_tick(void)
+{
+    return xTaskGetTickCount();
+}
+
 void *system_get_physical_address(void *virtual_address)
 {
     return virtual_address;
@@ -27,10 +32,7 @@ SemaphoreHandle_t doom_mutex;
 static void doom_task(void *parameters)
 {
     while (1) {
-        printf_r("[DOOM] Waiting for USB device...\n");
         xSemaphoreTake(doom_mutex, portMAX_DELAY);
-        printf_r("[DOOM] USB device connected\n");
-
         doom_entry("C:/doom1.wad");
     }
 }
@@ -102,13 +104,17 @@ static void freertos_entry(void *parameters)
     if (fileio_register_driver('E', &fatx_io, &ata_ll_io, NULL, &ata_bus) != 0) {
         printf_r("[FS] Error mounting drive E as FATX\n");
     }
-    if (fileio_register_driver('D', &iso9660_io, &ata_ll_io, NULL, &ata_bus) != 0) {
-        printf_r("[FS] Error mounting drive D as ISO9660\n");
-    }
+
+    //if (fileio_register_driver('D', &iso9660_io, &ata_ll_io, NULL, &ata_bus) != 0) {
+    //    printf_r("[FS] Error mounting drive D as ISO9660\n");
+    //}
+
+    printf_r("[FS] Filesystem mounted\n");
 
     doom_mutex = xSemaphoreCreateBinary();
     xTaskCreate(doom_task, "Doom!", configMINIMAL_STACK_SIZE * 2, NULL, THREAD_PRIORITY_NORMAL, NULL);
 
+#if (0)
     directory_handle_t *dir;
     // List files in C and print their names
     #if (1)
@@ -155,27 +161,27 @@ static void freertos_entry(void *parameters)
     FILE *file = fopen("C:/doom1.wad", "rb");
     if (file == NULL) {
         printf_r("[FS] Failed to open file\n");
-    }
-
-    printf_r("[FS] Reading in doom1.wad\n");
-    uint8_t *buffer = pvPortMalloc(6 * 1024 * 1024);
-    memset(buffer, 0, 6 * 1024 * 1024);
-    size_t total_bytes_read = 0;
-    uint32_t tick_start = xTaskGetTickCount();
-    while (1) {
-        uint32_t random_chunk = 16384;
-        size_t bytes_read = fread(&buffer[total_bytes_read], 1, random_chunk, file);
-        if (bytes_read == 0) {
-            break;
+    } else {
+        printf_r("[FS] Reading in doom1.wad\n");
+        uint8_t *buffer = pvPortMalloc(6 * 1024 * 1024);
+        memset(buffer, 0, 6 * 1024 * 1024);
+        size_t total_bytes_read = 0;
+        uint32_t tick_start = xTaskGetTickCount();
+        while (1) {
+            uint32_t random_chunk = 16384;
+            size_t bytes_read = fread(&buffer[total_bytes_read], 1, random_chunk, file);
+            if (bytes_read == 0) {
+                break;
+            }
+            total_bytes_read += bytes_read;
+            
         }
-        total_bytes_read += bytes_read;
-        
+        uint32_t tick_end = xTaskGetTickCount();
+        uint32_t crc = crc32(buffer, total_bytes_read);
+        printf_r("[FS] bytes read %d CRC32: %08x, took %d ms\n", total_bytes_read, crc, tick_end - tick_start);
+        fclose(file);
+        vPortFree(buffer);
     }
-    uint32_t tick_end = xTaskGetTickCount();
-    uint32_t crc = crc32(buffer, total_bytes_read);
-    printf_r("[FS] bytes read %d CRC32: %08x, took %d ms\n", total_bytes_read, crc, tick_end - tick_start);
-    fclose(file);
-    vPortFree(buffer);
 
     #if (0)
     do {
@@ -192,6 +198,7 @@ static void freertos_entry(void *parameters)
         printf_r("[FS] Failed to open directory\n");
     }
     #endif
+#endif
 
     xSemaphoreGive(doom_mutex);
     vTaskDelete(NULL);

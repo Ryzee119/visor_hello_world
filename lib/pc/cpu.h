@@ -84,7 +84,7 @@ static inline __attribute__((always_inline)) void cpu_write_msr64(uint32_t msr, 
 }
 
 void system_yield(uint32_t ms);
-
+uint32_t system_tick(void);
 void *system_get_physical_address(void *ptr);
 
 #endif // IA32_CPU_H

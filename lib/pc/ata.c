@@ -49,16 +49,18 @@ static void ata_io_400ns(ata_bus_t *ata_bus)
 static int8_t ata_busy_wait(ata_bus_t *ata_bus)
 {
     uint8_t status;
-    uint32_t timeout = ATA_BSY_TIMEOUT;
-
+    uint32_t timeout;
+    uint32_t timeout_start = system_tick();
     do {
         status = inb(ata_bus->ctrl_base + ATA_CTRL_ALT_STATUS);
         if (status & (ATA_STATUS_ERR | ATA_STATUS_DF)) {
             return -1;
         }
         system_yield(0);
-    } while ((status & ATA_STATUS_BSY) && !(status & ATA_STATUS_DRQ) && timeout--);
-    return (timeout > 0) ? 0 : -1;
+        timeout = system_tick() - timeout_start;
+    } while ((status & ATA_STATUS_BSY) && !(status & ATA_STATUS_DRQ) && (timeout < ATA_BSY_TIMEOUT));
+
+    return (timeout >= ATA_BSY_TIMEOUT) ? -1 : 0;
 }
 
 // This will reset both ATA devices on the bus
@@ -231,21 +233,24 @@ static int8_t busmaster_dma_transfer(ata_bus_t *ata_bus, void *buffer, uint8_t r
     outb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_COMMAND, command);
 
     // Wait for the transfer to complete (timeout 5s + 100ms per MB)
-    uint32_t timeout = 5000 + (bytes_to_transfer / 1024) * 100;
-    while (timeout--) {
+    const uint32_t timeout_time = 5000 + (bytes_to_transfer / 1024) * 100;
+    const uint32_t timeout_start = system_tick();
+    uint32_t timeout = 0;
+    do {
         uint8_t dma_status = inb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_STATUS);
         if (!(dma_status & ATA_BUSMASTER_DMA_STATUS_ACTIVE)) {
             break;
         }
-        system_yield(1);
-    }
+        system_yield(0);
+        timeout = system_tick() - timeout_start;
+    } while (timeout < timeout_time);
 
     // Make sure the DMA transfer is stopped
     outb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_COMMAND, 0);
 
     // Check for timeout or transfer errors
     uint8_t dma_status = inb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_STATUS);
-    if (timeout == 0) {
+    if (timeout >= timeout_time) {
         error = -1;
     } else {
         if (dma_status & ATA_BUSMASTER_DMA_STATUS_ERROR) {

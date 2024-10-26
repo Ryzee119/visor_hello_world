@@ -52,7 +52,7 @@ static void *dooom_open(const char *filename, const char *mode)
         return NULL;
     }
     printf_r("[DOOM] Opening file %s\n", filename);
-    
+
     return fopen(filename, mode);
 }
 
@@ -132,7 +132,8 @@ int doom_entry(const char *wad_path)
     xTaskCreate(doom_sound_task, "DoomSound", configMINIMAL_STACK_SIZE, &doom_logic_mutex, THREAD_PRIORITY_NORMAL,
                 NULL);
 
-    uint32_t *final_screen_buffer = pvPortMalloc(640 * 480 * 4);
+    uint32_t *screen_buffer_memory = pvPortMalloc(640 * 480 * 4 * 2);
+    uint32_t *screen_buffer[2] = {screen_buffer_memory, screen_buffer_memory + (640 * 480)};
     final_screen_buffer = XBOX_GET_WRITE_COMBINE_PTR(final_screen_buffer);
     while (1) {
         uint32_t start_ticks = xTaskGetTickCount();
@@ -145,8 +146,9 @@ int doom_entry(const char *wad_path)
         // We scale by 2 so it is 640x400 and apply the palette to convert to ARGB8888.
         // We also scale the height by 1.2 to 480.
         extern unsigned char screen_palette[256 * 3];
+        static uint8_t backbuffer_index = 0;
         uint8_t *indexed_framebuffer = (uint8_t *)doom_get_framebuffer(1);
-        uint32_t *screen_buffer_ptr = final_screen_buffer;
+        uint32_t *screen_buffer_ptr = screen_buffer[backbuffer_index ^= 1];
         uint32_t line = 0, flipflop = 0;
         const uint32_t FINAL_WIDTH = SCREENWIDTH * 2;
 
@@ -187,26 +189,8 @@ int doom_entry(const char *wad_path)
             }
         }
 #endif
-
-        static int frames = 0;
-        static uint32_t start_ticks_fps = 0;
-        static uint32_t time = 0;
-        if (frames++ == 9) {
-            uint32_t end_ticks = xTaskGetTickCount();
-            time = end_ticks - start_ticks_fps;
-            start_ticks_fps = xTaskGetTickCount();
-            frames = 0;
-        }
-
-        uint32_t x,y;
-        display_get_cursor(&x, &y);
-        display_set_cursor(0, 0);
-        time = MAX(time, 1);
-        printf("%d (%d)\n", time, 10000/time);
-        display_set_cursor(x, y);
-    
-        xbox_video_set_option(XBOX_VIDEO_OPTION_FRAMEBUFFER, final_screen_buffer);
         xTaskDelayUntil(&start_ticks, pdMS_TO_TICKS(1000 / 35));
+        xbox_video_set_option(XBOX_VIDEO_OPTION_FRAMEBUFFER, screen_buffer[backbuffer_index ^ 1]);
     }
     return 0;
 }

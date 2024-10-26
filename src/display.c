@@ -1,5 +1,4 @@
 #include "main.h"
-#define DISPLAY_BG_COLOR 0x10
 
 static const uint8_t MARGIN = 20;
 static uint32_t cursor_x = MARGIN;
@@ -12,7 +11,7 @@ void display_init()
     const int bpp = 4;
 
     uint8_t *fb = malloc(width * height * bpp);
-    memset(fb, DISPLAY_BG_COLOR, width * height * bpp);
+    memset(fb, 0x00, width * height * bpp);
     fb = XBOX_GET_WRITE_COMBINE_PTR(fb);
     xbox_video_init(0x44030307, (bpp == 2) ? RGB565 : ARGB8888, fb);
 }
@@ -23,7 +22,7 @@ void display_clear()
     if (!display->frame_buffer) {
         return;
     }
-    memset(display->frame_buffer, DISPLAY_BG_COLOR, display->width * display->height * display->bytes_per_pixel);
+    memset(display->frame_buffer, 0x00, display->width * display->height * display->bytes_per_pixel);
     cursor_x = MARGIN;
     cursor_y = MARGIN;
 }
@@ -74,7 +73,6 @@ void display_write_char(const char c)
                 uint8_t mask = 0x80;
                 for (int w = 0; w < UNSCII_FONT_WIDTH; w++) {
                     if (*glyph & (mask >>= 1)) {
-                        // Draw pixel inverted colour to what is already there
                         if (display->bytes_per_pixel == 2) {
                             uint16_t *fb16 = display->frame_buffer;
                             uint16_t *pixel = &fb16[(cursor_y + h) * display->width + cursor_x + w];
@@ -85,15 +83,14 @@ void display_write_char(const char c)
                             *pixel = 0xFFFFFFFF;
                         }
                     } else {
-                        // Draw pixel inverted colour to what is already there
                         if (display->bytes_per_pixel == 2) {
                             uint16_t *fb16 = display->frame_buffer;
                             uint16_t *pixel = &fb16[(cursor_y + h) * display->width + cursor_x + w];
-                            *pixel = DISPLAY_BG_COLOR;
+                            *pixel = 0x0000;
                         } else {
                             uint32_t *fb32 = display->frame_buffer;
                             uint32_t *pixel = &fb32[(cursor_y + h) * display->width + cursor_x + w];
-                            *pixel = DISPLAY_BG_COLOR;
+                            *pixel = 0x00000000;
                         }
                     }
                 }
@@ -110,8 +107,8 @@ void display_write_char(const char c)
 
         // New page
         if (cursor_y + UNSCII_FONT_HEIGHT >= (display->height - MARGIN)) {
-            display_clear();
-            return;
+            //display_clear();
+            //return;
             const display_information_t *display = xbox_video_get_display_information();
             if (!display->frame_buffer) {
                 return;
@@ -120,7 +117,7 @@ void display_write_char(const char c)
             const uint32_t pixel_total = display->width * display->height * display->bytes_per_pixel;
             const uint32_t pixel_per_row =  display->width * UNSCII_FONT_HEIGHT * display->bytes_per_pixel;
             memcpy(display->frame_buffer, display->frame_buffer + pixel_per_row, pixel_total - pixel_per_row);
-            memset(display->frame_buffer + pixel_total - pixel_per_row, DISPLAY_BG_COLOR, pixel_per_row);
+            memset(display->frame_buffer + pixel_total - pixel_per_row, 0x00, pixel_per_row);
             cursor_y -= UNSCII_FONT_HEIGHT;
             cursor_x = MARGIN;
 
