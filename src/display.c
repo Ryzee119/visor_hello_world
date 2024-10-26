@@ -107,20 +107,23 @@ void display_write_char(const char c)
 
         // New page
         if (cursor_y + UNSCII_FONT_HEIGHT >= (display->height - MARGIN)) {
-            //display_clear();
-            //return;
+            // Clear screen and start again
+            #if (1)
+            display_clear();
+            return;
+            // Scroll up one row
+            #else
             const display_information_t *display = xbox_video_get_display_information();
             if (!display->frame_buffer) {
                 return;
             }
-
             const uint32_t pixel_total = display->width * display->height * display->bytes_per_pixel;
             const uint32_t pixel_per_row =  display->width * UNSCII_FONT_HEIGHT * display->bytes_per_pixel;
             memcpy(display->frame_buffer, display->frame_buffer + pixel_per_row, pixel_total - pixel_per_row);
             memset(display->frame_buffer + pixel_total - pixel_per_row, 0x00, pixel_per_row);
             cursor_y -= UNSCII_FONT_HEIGHT;
             cursor_x = MARGIN;
-
+            #endif
         }
     }
 }

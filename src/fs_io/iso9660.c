@@ -77,11 +77,9 @@ user_file_handle_t *iso9660_open(user_fs_handle_t *handle, const char *path, int
 
     file_start++;
 
-    printf("Opening file %s\n", file_start);
     status = l9660_openat(file, parent, file_start);
     vPortFree(dir);
     if (status != L9660_OK) {
-        printf("Failed to open file %s with status %d\n", file_start,status);
         vPortFree(file);
         return NULL;
     }
@@ -194,13 +192,9 @@ static l9660_dir *open_dir_recurse(l9660_fs *fs, l9660_dir *dir, const char *pat
         uint32_t len = seg_end - seg_start;
         assert(len > 0);
 
-        printf("Opening %s\n", seg_start);
-
         if (len >= 2 && seg_start[1] == ':') {
-            printf("Opening root %s\n", seg_start);
             status = l9660_fs_open_root(dir, fs);
         } else {
-            printf("Opening sub %s\n", seg_start);
             status = l9660_opendirat(dir, dir, seg_start);
         }
         if (status != L9660_OK) {

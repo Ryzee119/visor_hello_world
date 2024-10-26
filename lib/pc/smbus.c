@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024 Ryzee119
+
 #include <stdint.h>
 #include "io.h"
 #include "lock.h"

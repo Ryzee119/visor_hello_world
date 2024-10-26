@@ -22,7 +22,7 @@ int16_t doom_rightx = 0;
 
 static void dooom_printf(const char *str)
 {
-    printf_r("%s", str);
+    printf_ts("%s", str);
 }
 
 static void *dooom_malloc(int size)
@@ -51,7 +51,7 @@ static void *dooom_open(const char *filename, const char *mode)
     if (filename == NULL) {
         return NULL;
     }
-    printf_r("[DOOM] Opening file %s\n", filename);
+    printf_ts("[DOOM] Opening file %s\n", filename);
 
     return fopen(filename, mode);
 }
@@ -106,7 +106,7 @@ char *dooom_getenv(const char *var)
     if (strcmp(var, "HOME") == 0) {
         return "E:/doom";
     }
-    printf_r("[DOOM] Unknown env var %s\n", var);
+    printf_ts("[DOOM] Unknown env var %s\n", var);
     return 0;
 }
 
@@ -123,7 +123,7 @@ int doom_entry(const char *wad_path)
     doom_set_file_io(dooom_open, dooom_close, dooom_read, dooom_write, dooom_seek, dooom_tell, dooom_eof);
     doom_set_getenv(dooom_getenv);
 
-    printf_r("[DOOM] Initializing...\n");
+    printf_ts("[DOOM] Initializing...\n");
 
     doom_init(argc, (char **)args, 0);
     doom_initd = 1;
@@ -132,23 +132,32 @@ int doom_entry(const char *wad_path)
     xTaskCreate(doom_sound_task, "DoomSound", configMINIMAL_STACK_SIZE, &doom_logic_mutex, THREAD_PRIORITY_NORMAL,
                 NULL);
 
-    uint32_t *screen_buffer_memory = pvPortMalloc(640 * 480 * 4 * 2);
+    // Create our framebuffer output buffer
+    uint32_t *screen_buffer_memory = pvPortMalloc(640 * 480 * 4 * 2 + 4096);
+    screen_buffer_memory = (uint32_t *)(((uint32_t)screen_buffer_memory + 4095) & ~4095);
     uint32_t *screen_buffer[2] = {screen_buffer_memory, screen_buffer_memory + (640 * 480)};
-    final_screen_buffer = XBOX_GET_WRITE_COMBINE_PTR(final_screen_buffer);
+
     while (1) {
-        uint32_t start_ticks = xTaskGetTickCount();
-        doom_mouse_move(doom_rightx / 256, 0);
+        uint32_t start_frame = xTaskGetTickCount();
+
+        // Handle input
         xSemaphoreTake(doom_logic_mutex, portMAX_DELAY);
+        doom_mouse_move(doom_rightx / 256, 0);
         doom_update();
         xSemaphoreGive(doom_logic_mutex);
 
+        // Get doom framebuffer and palette.
         // The doom framebuffer is palette indexed at 320x200.
         // We scale by 2 so it is 640x400 and apply the palette to convert to ARGB8888.
         // We also scale the height by 1.2 to 480.
         extern unsigned char screen_palette[256 * 3];
-        static uint8_t backbuffer_index = 0;
         uint8_t *indexed_framebuffer = (uint8_t *)doom_get_framebuffer(1);
+
+        // Prepare our output buffer
+        static uint8_t backbuffer_index = 0;
         uint32_t *screen_buffer_ptr = screen_buffer[backbuffer_index ^= 1];
+        const uint32_t *p = screen_buffer_ptr;
+
         uint32_t line = 0, flipflop = 0;
         const uint32_t FINAL_WIDTH = SCREENWIDTH * 2;
 
@@ -172,7 +181,6 @@ int doom_entry(const char *wad_path)
                 // Poor man's way is to redraw every 5th line.
                 // As we are doubling anyway, ideally we drawing on line on row 2.5 and one on 5, but we can't do that.
                 // instead we flip flop between line 2 and 3 (~2.5) and 5.
-
                 if (line == ((flipflop) ? 2 : 3)) {
                     memcpy(screen_buffer_ptr, screen_buffer_ptr - FINAL_WIDTH, FINAL_WIDTH * 4);
                     screen_buffer_ptr += FINAL_WIDTH;
@@ -189,8 +197,27 @@ int doom_entry(const char *wad_path)
             }
         }
 #endif
-        xTaskDelayUntil(&start_ticks, pdMS_TO_TICKS(1000 / 35));
-        xbox_video_set_option(XBOX_VIDEO_OPTION_FRAMEBUFFER, screen_buffer[backbuffer_index ^ 1]);
+
+        static int frames = 0;
+        static uint32_t start_ticks_fps = 0;
+        static uint32_t time = 0;
+        if (frames++ == 9) {
+            uint32_t end_ticks = xTaskGetTickCount();
+            time = end_ticks - start_ticks_fps;
+            start_ticks_fps = xTaskGetTickCount();
+            frames = 0;
+        }
+
+        uint32_t x,y;
+        display_get_cursor(&x, &y);
+        display_set_cursor(0, 0);
+        time = MAX(time, 1);
+        printf("%d (%d)\n", time, 10000/time);
+        display_set_cursor(x, y);
+    
+        xTaskDelayUntil(&start_frame, pdMS_TO_TICKS(1000 / 60));
+        //taskYIELD();
+        xbox_video_set_option(XBOX_VIDEO_OPTION_FRAMEBUFFER, (uint32_t *)XBOX_GET_WRITE_COMBINE_PTR(p));
     }
     return 0;
 }

@@ -1,4 +1,6 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (c) 2024 Ryzee119
+
 // https://archive.org/details/amd-756
 
 #include "xbox.h"

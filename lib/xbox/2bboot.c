@@ -1,8 +1,11 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024 Ryzee119
+
 #include "xbox.h"
 
 void main(void);
 
-// Sectiosn marked __attribute__((section(".boot_code"))) are not compressed in the ROM image
+// Sections marked __attribute__((section(".boot_code"))) are not compressed in the ROM image
 // This is used for code that must run before the decompressor is initialized and is useful for code that must
 // run very quickly after boot, such as the SMC challenge/response
 
@@ -132,6 +135,7 @@ void boot(void)
     xbox_led_output(XLED_RED, XLED_RED, XLED_RED, XLED_RED);
 
     smbus_init(PCI_SMBUS_IO_REGISTER_BASE_1);
+
     xbox_serial_init();
 
     cpu_disable_cache();

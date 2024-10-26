@@ -1,3 +1,6 @@
+; SPDX-License-Identifier: MIT
+; Copyright (c) 2024 Ryzee119
+
 extern __user_text_vma
 extern __user_text_size
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: CC0-1.0
+
 #include "xbox.h"
 
 #define LED_MODE_AUTO   0x00

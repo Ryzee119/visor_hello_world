@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: CC0-1.0
+
 #ifndef LED_H
 #define LED_H
 

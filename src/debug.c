@@ -15,7 +15,7 @@ __strong_reference(stdin, stdout);
 __strong_reference(stdin, stderr);
 
 // Thread safe printf that is simply wrapped in a mutex
-int printf_r(const char *format, ...)
+int printf_ts(const char *format, ...)
 {
     static StaticSemaphore_t mutex;
     static SemaphoreHandle_t handle = NULL;

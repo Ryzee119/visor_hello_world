@@ -1,3 +1,5 @@
+; SPDX-License-Identifier: GPL-2.0
+; Copyright (c) https://github.com/XboxDev/cromwell
 
 ; https://github.com/Ernegien/xdecode
 ; xdecode -i cromwell.bin -c comments.conf

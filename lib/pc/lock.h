@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: CC0-1.0
+
 #include <stdatomic.h>
 #include <stdlib.h>
 

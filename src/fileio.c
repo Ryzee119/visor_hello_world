@@ -42,23 +42,23 @@ int close(int fd)
 ssize_t read(int fd, void *buffer, size_t count)
 {
     file_handle_t *fp = (file_handle_t *)fd;
-    //printf_r("Reading %d bytes from %08x -> ", count, fp);
+    // printf_ts("Reading %d bytes from %08x -> ", count, fp);
     memset(buffer, 0, count);
     xSemaphoreTake(fp->driver->mutex, portMAX_DELAY);
     ssize_t sz = fp->driver->io->read(fp->user_handle, buffer, count);
     xSemaphoreGive(fp->driver->mutex);
-    #if (0)
+#if (0)
     uint64_t checksum = 0;
     for (int i = 0; i < sz; i++) {
         if (sz == 20224 && i > (sz - 64)) {
 
-            printf_r("%02x ", ((uint8_t *)buffer)[i]);
+            printf_ts("%02x ", ((uint8_t *)buffer)[i]);
             assert(((uint8_t *)buffer)[0] == 0x97);
         }
         checksum += ((uint8_t *)buffer)[i];
     }
-    printf_r("Checksum: %08x\n", checksum);
-    #endif
+    printf_ts("Checksum: %08x\n", checksum);
+#endif
     return sz;
 }
 
@@ -125,7 +125,7 @@ static file_io_driver_t *fs_driver_head = NULL;
 file_io_driver_t *fileio_find_driver(char drive_letter)
 {
     if (isalnum(drive_letter) == 0) {
-        printf_r("Invalid drive letter %c(0x%02x)\n", drive_letter, drive_letter);
+        printf_ts("Invalid drive letter %c(0x%02x)\n", drive_letter, drive_letter);
         return NULL;
     }
     drive_letter = toupper(drive_letter);
@@ -139,7 +139,7 @@ file_io_driver_t *fileio_find_driver(char drive_letter)
     }
     taskEXIT_CRITICAL();
     if (driver == NULL) {
-        printf_r("Driver not found for drive %c\n", drive_letter);
+        printf_ts("Driver not found for drive %c\n", drive_letter);
     }
     return driver;
 }
@@ -181,7 +181,7 @@ int8_t fileio_register_driver(const char drive_letter, fs_io_t *io, fs_io_ll_t *
 
     user_fs_ll_handle_t *ll_handle = driver->io_ll->init(driver, ll_arg);
     if (ll_handle == NULL) {
-        printf_r("Failed to init low-level driver\n");
+        printf_ts("Failed to init low-level driver\n");
         vSemaphoreDelete(driver->mutex);
         vPortFree(driver);
         if (prev != NULL) {
@@ -212,6 +212,7 @@ int8_t fileio_register_driver(const char drive_letter, fs_io_t *io, fs_io_ll_t *
 int8_t fileio_unregister_driver(const char drive_letter)
 {
     int8_t status = -1;
+
     taskENTER_CRITICAL();
 
     file_io_driver_t *driver = fs_driver_head;
@@ -223,6 +224,8 @@ int8_t fileio_unregister_driver(const char drive_letter)
         prev = driver;
         driver = driver->next;
     }
+
+    taskEXIT_CRITICAL();
 
     if (driver) {
         driver->io->deinit(driver->handle);
@@ -241,6 +244,5 @@ int8_t fileio_unregister_driver(const char drive_letter)
         status = 0;
     }
 
-    taskEXIT_CRITICAL();
     return status;
 }

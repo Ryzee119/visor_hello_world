@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024 Ryzee119
+
 #include "ata.h"
 #include "atapi.h"
 #include "cpu.h"
@@ -31,6 +34,7 @@ static __inline void insw(uint16_t __port, void *__buf, unsigned long __n)
 
 static __inline__ void outsw(uint16_t __port, const void *__buf, unsigned long __n)
 {
+    // Do not use REP OUTSW to transfer data. There must be a tiny delay between each OUTSW. This simple loop is enough
     uint16_t *buf = (uint16_t *)__buf;
     for (uint32_t i = 0; i < __n; i++) {
         outw(__port, buf[i]);
@@ -199,11 +203,12 @@ static int8_t busmaster_dma_transfer(ata_bus_t *ata_bus, void *buffer, uint8_t r
     uint8_t *buffer8 = (uint8_t *)buffer;
     uint8_t prd_index = 0;
 
-    // FIXME: This assumes contigous memory but we can scatter gather on page boundaries - although we're not paging anyway so all good
+    // FIXME: This assumes contigous memory but we can scatter gather on page boundaries - although we're not paging
+    // anyway so all good
     while (bytes_to_process > 0) {
         uint32_t bytes = (bytes_to_process > 0xFFFF) ? 0xFFFF : bytes_to_process;
 
-        //Make sure we dont cross a 64K boundary
+        // Make sure we dont cross a 64K boundary
         if (((uint32_t)buffer8 & 0xFFFF) + bytes > 0x10000) {
             bytes = 0x10000 - ((uint32_t)buffer8 & 0xFFFF);
         }
@@ -262,14 +267,25 @@ static int8_t busmaster_dma_transfer(ata_bus_t *ata_bus, void *buffer, uint8_t r
     outb(ata_bus->busmaster_base + ATA_BUSMASTER_DMA_STATUS,
          ATA_BUSMASTER_DMA_STATUS_INTERRUPT | ATA_BUSMASTER_DMA_STATUS_ERROR);
 
-    // Reading this byte may perform a necessary final cache flush of the DMA data to memory. 
+    // Reading this byte may perform a necessary final cache flush of the DMA data to memory.
     uint8_t device_status = inb(ata_bus->io_base + ATA_IO_STATUS);
+
+    if (read == 0) {
+        // Perform a ATA_CMD_FLUSH_CACHE
+        ata_command_t ata_command = {
+            .command = ATA_CMD_FLUSH_CACHE,
+            .lba = 0,
+            .sector_count = 0,
+            .feature = 0,
+        };
+        ata_send_command(ata_bus, 0, &ata_command);
+    }
 
     return error;
 }
 
-static int8_t atapi_dma_transfer(ata_bus_t *ata_bus, uint8_t device_index, void *atapi_command,
-                                 uint8_t read, void *buffer, uint32_t buffer_length)
+static int8_t atapi_dma_transfer(ata_bus_t *ata_bus, uint8_t device_index, void *atapi_command, uint8_t read,
+                                 void *buffer, uint32_t buffer_length)
 {
     const ide_device_t *ide_device = (device_index == 0) ? &ata_bus->master : &ata_bus->slave;
     if (ide_device->is_present == 0 || ide_device->is_atapi == 0) {
@@ -364,7 +380,8 @@ static int8_t ide_dma_io(ata_bus_t *ata_bus, uint8_t device_index, uint8_t read,
             .flags = 0,
             .reserved_10 = 0,
         };
-        return atapi_dma_transfer(ata_bus, device_index, &atapi_command, read, buffer, sector_count * ide_device->sector_size);
+        return atapi_dma_transfer(ata_bus, device_index, &atapi_command, read, buffer,
+                                  sector_count * ide_device->sector_size);
     } else {
         ata_command_t ata_command = {
             .command = (read) ? ATA_CMD_READ_LBA28_DMA : ATA_CMD_WRITE_LBA28_DMA,
@@ -376,7 +393,8 @@ static int8_t ide_dma_io(ata_bus_t *ata_bus, uint8_t device_index, uint8_t read,
         if (lba > ide_device->ata.total_sector_count_lba28 || sector_count > 256) {
             ata_command.command = (read) ? ATA_CMD_READ_LBA48_PIO : ATA_CMD_WRITE_LBA48_PIO;
         }
-        return ata_dma_transfer(ata_bus, device_index, &ata_command, read, buffer, sector_count * ide_device->sector_size);
+        return ata_dma_transfer(ata_bus, device_index, &ata_command, read, buffer,
+                                sector_count * ide_device->sector_size);
     }
 }
 
@@ -544,8 +562,8 @@ int8_t ide_bus_init(uint16_t busmaster_base, uint16_t ctrl_base, uint16_t io_bas
             memset(&atapi_command_buffer, 0, ATAPI_CMD_SIZE);
             atapi_command_buffer.opcode = ATAPI_CMD_READ_CAPACITY;
 
-            
-            error = atapi_dma_transfer(ata_bus, i, &atapi_command_buffer, 1, &atapi_read_capacity_response, sizeof(atapi_read_capacity_response));
+            error = atapi_dma_transfer(ata_bus, i, &atapi_command_buffer, 1, &atapi_read_capacity_response,
+                                       sizeof(atapi_read_capacity_response));
             if (error) {
                 printf("[ATAPI] Error reading capacity\n");
                 continue;

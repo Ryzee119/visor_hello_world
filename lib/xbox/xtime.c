@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024 Ryzee119
+
 #include "xbox.h"
 
 // https://wiki.osdev.org/ACPI_Timer
@@ -24,6 +27,5 @@ void xbox_timer_spin_wait(uint32_t ticks)
     while (xbox_timer_query_performance_counter() < end)
         ;
 }
-
 
 // xbox_get_time

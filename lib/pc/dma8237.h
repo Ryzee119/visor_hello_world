@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: CC0-1.0
+
 #ifndef _DMA_8237_H_
 #define _DMA_8237_H_
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: CC0-1.0
+
 #ifndef ENCODER_H
 #define ENCODER_H
 

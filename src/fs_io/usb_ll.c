@@ -2,7 +2,7 @@
 
 #define MSC_DEBUG
 #ifdef MSC_DEBUG
-#define MSC_PRINTF printf_r
+#define MSC_PRINTF printf_ts
 #else
 #define MSC_PRINTF(...)
 #endif
@@ -23,7 +23,7 @@ static bool usb_transfer_cb(uint8_t dev_addr, tuh_msc_complete_data_t const *cb_
     if (csw->status == 0) {
         *finished = 1;
     } else {
-        printf_r("[USBMSC] SCSI command failed with status %d\n", csw->status);
+        printf_ts("[USBMSC] SCSI command failed with status %d\n", csw->status);
         *finished = -1;
     }
 
@@ -118,7 +118,7 @@ static int8_t usb_disk_read(user_fs_ll_handle_t *handle, void *buffer, uint64_t 
             system_yield(0);
         }
         if (finished == -1) {
-            printf_r("disk_read failed, sector %d, count %d\n", sector_offset, sector_count);
+            printf_ts("disk_read failed, sector %d, count %d\n", sector_offset, sector_count);
             return -1;
         }
         return 0;
@@ -139,7 +139,7 @@ static int8_t usb_disk_write(user_fs_ll_handle_t *handle, const void *buffer, ui
             system_yield(0);
         }
         if (finished == -1) {
-            printf_r("disk_write failed\n");
+            printf_ts("disk_write failed\n");
             return -1;
         }
         return 0;

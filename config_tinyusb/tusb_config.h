@@ -38,5 +38,5 @@
 #define CFG_TUH_TASK_QUEUE_SZ 256
 #endif
 
-#define CFG_TUSB_DEBUG_PRINTF printf_r
+#define CFG_TUSB_DEBUG_PRINTF printf_ts
 #define CFG_TUSB_MEM_ALIGN    TU_ATTR_ALIGNED(256)

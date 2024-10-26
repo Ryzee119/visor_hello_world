@@ -51,7 +51,7 @@ static void resample_audio_stereo(int16_t *input, int input_size, int16_t *outpu
 void dooom_changing_music(void *data, int looping)
 {
     if (Midiplay_Load(data, 0xFFFF) == 0) {
-        printf("Failed to load music\n");
+        printf_ts("Failed to load music\n");
     } else {
         Midiplay_Loop(looping);
         Midiplay_Play(1);

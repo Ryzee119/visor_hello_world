@@ -20,7 +20,7 @@ user_fs_handle_t *fat_init(file_io_driver_t *driver, void *arg)
     char path[3] = {drive_letter, ':', '\0'};
     if (f_mount(fs, path, 1) != FR_OK) {
         vPortFree(handle);
-        printf_r("[FATFS] Failed to mount drive %c\n", drive_letter);
+        printf_ts("[FATFS] Failed to mount drive %c\n", drive_letter);
         return NULL;
     }
 
@@ -173,7 +173,7 @@ DRESULT disk_read(BYTE pdrv, BYTE *buff, LBA_t sector, UINT count)
 
     ssize_t status = driver->io_ll->read(driver->ll_handle, buff, sector, count);
     if (status < 0) {
-        printf_r("[FATFS] disk_read failed with status %d\n", status);
+        printf_ts("[FATFS] disk_read failed with status %d\n", status);
         return RES_ERROR;
     }
     return RES_OK;
@@ -189,7 +189,7 @@ DRESULT disk_write(BYTE pdrv, const BYTE *buff, LBA_t sector, UINT count)
 
     ssize_t status = driver->io_ll->write(driver->ll_handle, buff, sector, count);
     if (status < 0) {
-        printf_r("[FATFS] disk_read failed with status %d\n", status);
+        printf_ts("[FATFS] disk_read failed with status %d\n", status);
         return RES_ERROR;
     }
     return RES_OK;
@@ -217,14 +217,14 @@ DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void *buff)
             cmd = FS_IO_GET_BLOCK_SIZE;
             break;
         default: {
-            printf_r("[FATFS] disk_ioctl unsupported command %d\n", cmd);
+            printf_ts("[FATFS] disk_ioctl unsupported command %d\n", cmd);
             return RES_ERROR;
         }
     }
 
     int8_t status = driver->io_ll->ioctrl(driver->ll_handle, cmd, buff);
     if (status != 0) {
-        printf_r("[FATFS] disk_ioctl failed with status %d\n", status);
+        printf_ts("[FATFS] disk_ioctl failed with status %d\n", status);
     }
     return (status == 0) ? RES_OK : RES_ERROR;
 }

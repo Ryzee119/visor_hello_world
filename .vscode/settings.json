@@ -74,6 +74,7 @@
         "fileio.h": "c",
         "fcntl.h": "c",
         "deque": "c",
-        "vector": "c"
+        "vector": "c",
+        "ata.h": "c"
     }
 }

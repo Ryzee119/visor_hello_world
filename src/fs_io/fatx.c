@@ -65,7 +65,7 @@ user_fs_handle_t *fatx_fs_init(file_io_driver_t *driver, void *arg)
 
     uint64_t partition_offset, partition_size;
     if (fatx_drive_to_offset_size(tolower(drive_letter), &partition_offset, &partition_size) != FATX_STATUS_SUCCESS) {
-        printf("[FATX] Failed to get partition offset and size\n");
+        printf_ts("[FATX] Failed to get partition offset and size\n");
         vPortFree(fatx->user_data);
         vPortFree(fatx);
         return NULL;
@@ -73,7 +73,7 @@ user_fs_handle_t *fatx_fs_init(file_io_driver_t *driver, void *arg)
 
     if (fatx_open_device(fatx, path, partition_offset, partition_size, sector_size, FATX_READ_FROM_SUPERBLOCK) !=
         FATX_STATUS_SUCCESS) {
-        printf("[FATX] Failed to mount drive %c\n", drive_letter);
+        printf_ts("[FATX] Failed to mount drive %c\n", drive_letter);
         vPortFree(fatx->user_data);
         vPortFree(fatx);
         return NULL;
@@ -108,22 +108,22 @@ user_file_handle_t *fatx_fs_open(user_fs_handle_t *handle, const char *path, int
 
     if (flags & O_CREAT) {
         uint8_t file_exists = fatx_get_attr(fs, file->path, &file->attr) == FATX_STATUS_SUCCESS;
-        printf("[FATX] File exists: %d\n", file_exists);
+        printf_ts("[FATX] File exists: %d\n", file_exists);
         if (file_exists == 0) {
             if (fatx_mknod(fs, file->path) != FATX_STATUS_SUCCESS) {
-                printf("[FATX] Failed to create file\n");
+                printf_ts("[FATX] Failed to create file\n");
                 vPortFree(file);
                 return NULL;
             }
         }
         if (flags & O_EXCL && file_exists) {
-            printf("[FATX] File already exists\n");
+            printf_ts("[FATX] File already exists\n");
             vPortFree(file);
             return NULL;
         }
         if (flags & O_TRUNC) {
             if (fatx_truncate(fs, file->path, 0) != FATX_STATUS_SUCCESS) {
-                printf("[FATX] Failed to truncate file\n");
+                printf_ts("[FATX] Failed to truncate file\n");
                 vPortFree(file);
                 return NULL;
             }
@@ -362,8 +362,6 @@ size_t fatx_dev_read(struct fatx_fs *fs, void *buf, size_t size, size_t items)
 
     // Partial read for last sector
     if (bytes_remaining > 0) {
-
-        // printf("[FATX] Reading last unaligned %llu bytes from LBA %llu\n", bytes_remaining, current_lba);
         assert(bytes_remaining < sector_size);
         if (fatx_extra_data->cached_sector != current_lba) {
             fatx_extra_data->driver->io_ll->read(fatx_extra_data->driver->ll_handle, fatx_extra_data->sector_cache,

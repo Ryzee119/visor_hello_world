@@ -9,6 +9,7 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 #include <FreeRTOS.h>
 #include <freertos_irq.h>
@@ -43,7 +44,7 @@
 #error "THREAD_PRIORITY_HIGHEST is higher than configMAX_PRIORITIES"
 #endif
 
-int printf_r(const char *format, ...);
+int printf_ts(const char *format, ...);
 
 void display_init(void);
 void display_write_char(const char c);
