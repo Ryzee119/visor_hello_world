@@ -11,8 +11,6 @@
 .section .data
 exception_frame: .long 0, 0, 0
 
-
-.global freertos_usb0_interrupt
 .text
 
 .macro EXCEPTION_WRAPPER name, function
@@ -56,13 +54,13 @@ exception_frame: .long 0, 0, 0
         call \function
         portINTERRUPT_EPILOGUE
 
-        movb $0x20, %al
-        outb %al, $0x20
-
         .if \source == "pic2"
             movb $0x20, %al
             outb %al, $0xA0
         .endif
+
+        movb $0x20, %al
+        outb %al, $0x20
 
         popa
         iret
@@ -94,5 +92,6 @@ INTERRUPT_WRAPPER freertos_apu_interrupt, apu_handler, "pic1"
 INTERRUPT_WRAPPER freertos_aci_interrupt, aci_handler, "pic1"
 INTERRUPT_WRAPPER freertos_usb1_interrupt, usb1_handler, "pic2"
 INTERRUPT_WRAPPER freertos_ide_interrupt, ide_handler, "pic2"
+INTERRUPT_WRAPPER freertos_smc_interrupt, smc_handler, "pic2"
 
 .end

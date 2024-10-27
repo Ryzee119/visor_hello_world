@@ -26,3 +26,6 @@ extern void freertos_apu_interrupt(void);
 extern void freertos_aci_interrupt(void);
 extern void freertos_usb1_interrupt(void);
 extern void freertos_ide_interrupt(void);
+extern void freertos_smc_interrupt(void);
+
+extern void IntHandlerUnused(void);

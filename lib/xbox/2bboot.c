@@ -158,6 +158,13 @@ void boot(void)
     io_output_byte(XBOX_PIC2_DATA_PORT, ICW4_8086_MODE);
     io_output_byte(XBOX_PIC2_DATA_PORT, OCW1_MASK_ALL);
 
+    // Clear latent SMC Interrupts
+    uint8_t smc_irq_status;
+    smbus_input_byte(XBOX_SMBUS_ADDRESS_SMC, XBOX_SMC_GET_IRQ, &smc_irq_status);
+
+    // Ensure that tray is closed
+    smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, XBOX_SMC_SET_TRAY_CLOSED, 1);
+
     // Enable PIT timer at 1kHz
     io_output_byte(XBOX_PIT_COMMAND_PORT, PIT_ACCESS_LOHIBYTE | PIT_MODE_SQUARE_WAVE | (XBOX_PIT_CHANNEL0 & 0x0F));
     uint16_t diviser = PIC_TIMER_FREQ / 1000;
@@ -172,10 +179,6 @@ void boot(void)
     mmio_output_dword(XBOX_APIC_BASE + APIC_LVT_LINT0, 0x00000700);
     mmio_output_dword(XBOX_APIC_BASE + APIC_SIV, 0x00000000);
 
-    //?
-    // smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x1A, 0x01);
-    // smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x1B, 0x04);
-    // smbus_output_byte(XBOX_SMBUS_ADDRESS_SMC, 0x19, 0x01);
     xbox_led_output(XLED_ORANGE, XLED_ORANGE, XLED_ORANGE, XLED_ORANGE);
 
     __asm__("sti");

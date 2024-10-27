@@ -29,12 +29,15 @@ static void freertos_entry(void *parameters)
     mmio_output_dword(XBOX_APIC_BASE + APIC_LVT_LINT0, 0x00000700);
     mmio_output_dword(XBOX_APIC_BASE + APIC_SIV, 0);
     xPortInstallInterruptHandler(vPortTimerHandler, XBOX_PIC1_BASE_VECTOR_ADDRESS + XBOX_PIT_TIMER_IRQ);
-    pic8259_irq_enable(XBOX_PIC1_DATA_PORT, XBOX_PIT_TIMER_IRQ);
+    xbox_interrupt_enable(XBOX_PIT_TIMER_IRQ, 1);
 
     freertos_running = 1;
 
     display_init();
+
     interrupts_init();
+    xbox_interrupt_enable(XBOX_PIC_SMC_IRQ, 1);
+
     usb_init();
     ide_bus_init(XBOX_ATA_BUSMASTER_BASE, XBOX_ATA_PRIMARY_BUS_CTRL_BASE, XBOX_ATA_PRIMARY_BUS_IO_BASE, &ata_bus);
 
@@ -62,6 +65,7 @@ static void freertos_entry(void *parameters)
     if (fileio_register_driver('C', &fatx_io, &ata_ll_io, NULL, &ata_bus) != 0) {
         printf_ts("[FS] Error mounting drive C as FATX\n");
     }
+
     if (fileio_register_driver('E', &fatx_io, &ata_ll_io, NULL, &ata_bus) != 0) {
         printf_ts("[FS] Error mounting drive E as FATX\n");
     }

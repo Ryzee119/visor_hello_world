@@ -150,3 +150,43 @@ void __attribute__((weak)) ide_handler()
 {
     printf("IDE\n");
 }
+
+void __attribute__((weak)) smc_handler()
+{
+    uint8_t irq_reason;
+    smbus_input_byte(0x20, 0x11, &irq_reason);
+    printf("[SMC] IRQ Reason is 0x%02x\n", irq_reason);
+
+    if (irq_reason & (1 << 0)) {
+        printf("SMC: POWERDOWN\n");
+    }
+
+    if (irq_reason & (1 << 1)) {
+        printf("SMC: TRAY CLOSED\n");
+    }
+
+    if (irq_reason & (1 << 5)) {
+        printf("SMC: EJECT PRESSED\n");
+        smbus_output_byte(0x20, 0x0D, 0x04);
+        smbus_output_byte(0x20, 0x0C, 0x00);
+
+    }
+
+    if (irq_reason & (1 << 2)) {
+        printf("SMC: CDROM IS NOW OPENING\n");
+        smbus_output_byte(0x20, 0x0D, 0x02);
+    }
+
+    if (irq_reason & (1 << 3)) {
+        printf("SMC: AV CABLE CONNECTED\n");
+    }
+
+    if (irq_reason & (1 << 4)) {
+        printf("SMC: AV CABLE UNPLUGGED\n");
+    }
+
+    if (irq_reason & (1 << 6)) {
+        printf("SMC: TRAY CLOSING\n");
+    }
+
+}

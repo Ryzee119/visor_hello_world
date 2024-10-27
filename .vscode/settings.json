@@ -75,6 +75,7 @@
         "fcntl.h": "c",
         "deque": "c",
         "vector": "c",
-        "ata.h": "c"
+        "ata.h": "c",
+        "encoder.h": "c"
     }
 }

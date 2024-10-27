@@ -212,7 +212,7 @@ int doom_entry(const char *wad_path)
         display_get_cursor(&x, &y);
         display_set_cursor(0, 0);
         time = MAX(time, 1);
-        printf("%d (%d)\n", time, 10000/time);
+        //printf("%d (%d)\n", time, 10000/time);
         display_set_cursor(x, y);
     
         xTaskDelayUntil(&start_frame, pdMS_TO_TICKS(1000 / 60));

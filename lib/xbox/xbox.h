@@ -27,6 +27,7 @@
 #include "led.h"
 #include "pci.h"
 #include "serial.h"
+#include "smc.h"
 #include "video.h"
 #include "xtime.h"
 
@@ -144,7 +145,8 @@
 // What retail uses - we also move away from FreeRTOS which uses 0x20 and 0x21
 #define XBOX_PIC1_BASE_VECTOR_ADDRESS 0x30
 #define XBOX_PIC2_BASE_VECTOR_ADDRESS 0x38
-#define XBOX_PIC_BASE(pic_irq)        (pic_irq < 8 ? XBOX_PIC1_BASE_VECTOR_ADDRESS : XBOX_PIC2_BASE_VECTOR_ADDRESS)
+#define XBOX_PIC_IRQ_TO_VECTOR(irq_num)                                                                                \
+    (irq_num < 8 ? (XBOX_PIC1_BASE_VECTOR_ADDRESS + irq_num) : (XBOX_PIC2_BASE_VECTOR_ADDRESS + (irq_num - 8)))
 
 #define XBOX_PIC1_COMMAND_PORT 0x20
 #define XBOX_PIC1_DATA_PORT    (XBOX_PIC1_COMMAND_PORT + 1)
@@ -159,6 +161,7 @@
 #define XBOX_PIC_APU_IRQ   5
 #define XBOX_PIC_ACI_IRQ   6
 #define XBOX_PIC_USB1_IRQ  9
+#define XBOX_PIC_SMC_IRQ   12
 #define XBOX_PIC_IDE_IRQ   14
 
 // DMA
@@ -191,4 +194,7 @@
 #define XBOX_ATA_PRIMARY_BUS_IO_BASE   0x1F0
 #define XBOX_ATA_PRIMARY_BUS_CTRL_BASE 0x3F6
 #define XBOX_ATA_BUSMASTER_BASE        PCI_IDE_IO_REGISTER_BASE_4
+
+void xbox_interrupt_enable(uint8_t irq, uint8_t enable);
+
 #endif
