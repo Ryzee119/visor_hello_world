@@ -9,6 +9,7 @@ typedef struct display_information
 {
     void *frame_buffer;
     uint16_t bytes_per_pixel;
+    uint16_t refresh_rate;
     uint16_t width;
     uint16_t height;
     uint16_t vdisplay_end;
@@ -66,9 +67,11 @@ typedef struct _VIDEO_MODE_SETTING
 #define XBOX_VIDEO_MAKE_COLOR_RGB565(r, g, b)       (((r & 0x1F) << 11) | ((g & 0x3F) << 5) | (b & 0x1F))
 #define XBOX_VIDEO_MAKE_COLOUR_ARGB8888(a, r, g, b) (((a & 0xFF) << 24) | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (b & 0xFF))
 
-uint32_t video_get_suitable_mode_coding(uint32_t width, uint32_t height);
+uint32_t xbox_video_get_suitable_mode_coding(uint32_t width, uint32_t height);
 void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, void *frame_buffer);
 uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter);
+void xbox_video_flush_cache();
 const display_information_t *xbox_video_get_display_information();
-const VIDEO_MODE_SETTING *video_get_settings(uint32_t mode_coding);
+const VIDEO_MODE_SETTING *xbox_video_get_settings(uint32_t mode_coding);
+
 #endif

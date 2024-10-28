@@ -90,7 +90,7 @@ void xbox_encoder_configure(uint32_t mode_coding, display_information_t *display
     uint32_t temp;
     uint8_t lookup_row = 0xFF;
 
-    const VIDEO_MODE_SETTING *mode_settings = video_get_settings(mode_coding);
+    const VIDEO_MODE_SETTING *mode_settings = xbox_video_get_settings(mode_coding);
     if (mode_settings == NULL) {
         assert(0);
         return;

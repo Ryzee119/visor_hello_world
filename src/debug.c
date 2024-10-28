@@ -30,5 +30,7 @@ int printf_ts(const char *format, ...)
     va_end(args);
     xSemaphoreGive(handle);
 
+    xbox_video_flush_cache();
+
     return r;
 }

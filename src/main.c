@@ -77,7 +77,6 @@ static void freertos_entry(void *parameters)
     xTaskCreate(doom_task, "Doom!", configMINIMAL_STACK_SIZE * 2, NULL, THREAD_PRIORITY_NORMAL, NULL);
 
     xbox_led_output(XLED_GREEN, XLED_GREEN, XLED_GREEN, XLED_GREEN);
-
     // We are done here. Delete this task.
     vTaskDelete(NULL);
     return;

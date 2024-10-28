@@ -22,13 +22,20 @@
 #define XBOX_SMC_SET_TRAY_CLOSED 0x0C // 0 = open, 1 = load
 #define XBOX_SMC_SET_IRQ_EN      0x1A // 1 = enable. Cannot disable
 
-enum xbox_pwr_control
+enum xbox_power_control
 {
     XBOX_SMC_SET_PWR_RESET = 0x01,
     XBOX_SMC_SET_PWR_POWER_CYCLE = 0x40,
     XBOX_SMC_SET_PWR_POWER_OFF = 0x80,
 };
 typedef uint8_t xbox_power_control_t;
+
+enum xbox_tray_control
+{
+    XBOX_SMC_TRAY_CONTROL_OPEN = 0x00,
+    XBOX_SMC_TRAY_CONTROL_CLOSE = 0x01,
+};
+typedef uint8_t xbox_tray_control_t;
 
 enum xbox_av_pack
 {
@@ -59,8 +66,9 @@ typedef uint8_t xbox_tray_state_t;
 
 int8_t xbox_smc_get_tray_state(xbox_tray_state_t *tray_state);
 int8_t xbox_smc_get_avpack(xbox_av_pack_t *av_pack);
-int8_t xbox_smc_set_tray_open(uint8_t open);
+int8_t xbox_smc_set_tray_state(xbox_tray_control_t tray_control);
 int8_t xbox_smc_set_power(xbox_power_control_t power);
-void xbox_smc_get_version(uint8_t version[4]);
-
+int8_t xbox_smc_get_version(uint8_t version[4]);
+int8_t xbox_smc_set_fan(uint8_t fan_percent);
+int8_t xbox_smc_read_temperatures(uint8_t *cpu_temp, uint8_t *mb_temp);
 #endif

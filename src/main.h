@@ -52,6 +52,7 @@ void display_clear(void);
 void display_get_cursor(uint32_t *x, uint32_t *y);
 void display_set_cursor(uint32_t x, uint32_t y);
 void display_write_char(const char c);
+void display_write_char_ex(const char c, uint16_t x, uint16_t y, void *frame_buffer);
 
 void usb_init(void);
 void interrupts_init(void);
@@ -59,4 +60,7 @@ void interrupts_init(void);
 int doom_entry(const char *wad_path);
 void dooom_new_input(uint16_t buttons, int16_t lx, int16_t ly, int16_t rx, int16_t ry, uint8_t lt, uint8_t rt);
 void doom_sound_task(void *parameters);
+
+void *pvPortMallocAligned(size_t xWantedSize, size_t xWantedAlignment);
+void pvPortMallocAlignedFree(void *pv);
 #endif

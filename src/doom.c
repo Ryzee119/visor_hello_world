@@ -117,6 +117,8 @@ int doom_entry(const char *wad_path)
 
     strcpy(wad_dir, wad_path);
 
+    uint16_t refresh_rate = xbox_video_get_display_information()->refresh_rate;
+
     doom_set_print(dooom_printf);
     doom_set_malloc(dooom_malloc, dooom_free);
     doom_set_gettime(dooom_gettime);
@@ -133,9 +135,15 @@ int doom_entry(const char *wad_path)
                 NULL);
 
     // Create our framebuffer output buffer
-    uint32_t *screen_buffer_memory = pvPortMalloc(640 * 480 * 4 * 2 + 4096);
-    screen_buffer_memory = (uint32_t *)(((uint32_t)screen_buffer_memory + 4095) & ~4095);
-    uint32_t *screen_buffer[2] = {screen_buffer_memory, screen_buffer_memory + (640 * 480)};
+    uint32_t *draw_buffer = pvPortMalloc(640 * 480 * 4);
+    uint32_t *gpu_buffer1 = aligned_alloc(0x1000, 640 * 480 * 4);
+    uint32_t *gpu_buffer2 = aligned_alloc(0x1000, 640 * 480 * 4);
+    gpu_buffer1 = (uint32_t *)(((uint32_t)gpu_buffer1 + 0xFFF) & ~0xFFF);
+    gpu_buffer2 = (uint32_t *)(((uint32_t)gpu_buffer2 + 0xFFF) & ~0xFFF);
+
+    uint32_t *screen_buffer[2] = {XBOX_GET_WRITE_COMBINE_PTR(gpu_buffer1), XBOX_GET_WRITE_COMBINE_PTR(gpu_buffer2)};
+    const uint32_t *p = draw_buffer;
+    uint8_t backbuffer_index = 0;
 
     while (1) {
         uint32_t start_frame = xTaskGetTickCount();
@@ -154,9 +162,9 @@ int doom_entry(const char *wad_path)
         uint8_t *indexed_framebuffer = (uint8_t *)doom_get_framebuffer(1);
 
         // Prepare our output buffer
-        static uint8_t backbuffer_index = 0;
-        uint32_t *screen_buffer_ptr = screen_buffer[backbuffer_index ^= 1];
-        const uint32_t *p = screen_buffer_ptr;
+        
+        uint32_t *draw_buffer_cursor = draw_buffer;
+        
 
         uint32_t line = 0, flipflop = 0;
         const uint32_t FINAL_WIDTH = SCREENWIDTH * 2;
@@ -169,26 +177,26 @@ int doom_entry(const char *wad_path)
                             screen_palette[index + 2];
 
             // Double up the pixel horizontally
-            *screen_buffer_ptr++ = argb;
-            *screen_buffer_ptr++ = argb;
+            *draw_buffer_cursor++ = argb;
+            *draw_buffer_cursor++ = argb;
 
             // Double up the lines
             if ((pixel + 1) % SCREENWIDTH == 0) {
-                memcpy(screen_buffer_ptr, screen_buffer_ptr - FINAL_WIDTH, FINAL_WIDTH * 4);
-                screen_buffer_ptr += FINAL_WIDTH;
+                memcpy(draw_buffer_cursor, draw_buffer_cursor - FINAL_WIDTH, FINAL_WIDTH * 4);
+                draw_buffer_cursor += FINAL_WIDTH;
 
                 // On original DOOM, each pixel was 20% higher, however we cant easily do this on a 640x480 display
                 // Poor man's way is to redraw every 5th line.
                 // As we are doubling anyway, ideally we drawing on line on row 2.5 and one on 5, but we can't do that.
                 // instead we flip flop between line 2 and 3 (~2.5) and 5.
                 if (line == ((flipflop) ? 2 : 3)) {
-                    memcpy(screen_buffer_ptr, screen_buffer_ptr - FINAL_WIDTH, FINAL_WIDTH * 4);
-                    screen_buffer_ptr += FINAL_WIDTH;
+                    memcpy(draw_buffer_cursor, draw_buffer_cursor - FINAL_WIDTH, FINAL_WIDTH * 4);
+                    draw_buffer_cursor += FINAL_WIDTH;
                 }
 
                 if (line == 5) {
-                    memcpy(screen_buffer_ptr, screen_buffer_ptr - FINAL_WIDTH, FINAL_WIDTH * 4);
-                    screen_buffer_ptr += FINAL_WIDTH;
+                    memcpy(draw_buffer_cursor, draw_buffer_cursor - FINAL_WIDTH, FINAL_WIDTH * 4);
+                    draw_buffer_cursor += FINAL_WIDTH;
                     line = 0;
                     flipflop ^= 1;
                 }
@@ -196,8 +204,10 @@ int doom_entry(const char *wad_path)
                 line++;
             }
         }
+
 #endif
 
+#if (1)
         static int frames = 0;
         static uint32_t start_ticks_fps = 0;
         static uint32_t time = 0;
@@ -208,16 +218,31 @@ int doom_entry(const char *wad_path)
             frames = 0;
         }
 
-        uint32_t x,y;
-        display_get_cursor(&x, &y);
-        display_set_cursor(0, 0);
-        time = MAX(time, 1);
-        //printf("%d (%d)\n", time, 10000/time);
-        display_set_cursor(x, y);
-    
-        xTaskDelayUntil(&start_frame, pdMS_TO_TICKS(1000 / 60));
-        //taskYIELD();
-        xbox_video_set_option(XBOX_VIDEO_OPTION_FRAMEBUFFER, (uint32_t *)XBOX_GET_WRITE_COMBINE_PTR(p));
+        uint32_t x = 20;
+        char fps_buffer[32];
+        time = XBOX_MAX(time, 1);
+        snprintf(fps_buffer, sizeof(fps_buffer), "FPS: %d\n", 10000 / time);
+        char *c = fps_buffer;
+        while (*c) {
+            display_write_char_ex(*c, x, 20, (void *)p);
+            x += 8;
+            c++;
+        }
+#endif
+
+        // It's very slow drawing directly to the write combine gpu backbuffer (< 10fps!), so we draw to a local buffer and then copy it over.
+        void *gpu_backbuffer = screen_buffer[backbuffer_index ^= 1];
+        memcpy(gpu_backbuffer, draw_buffer, 640 * 480 * 4);
+        xbox_video_flush_cache();
+
+        // Fixme, wait for vblank
+        xTaskDelayUntil(&start_frame, pdMS_TO_TICKS(1000 / refresh_rate));
+
+        xbox_video_set_option(XBOX_VIDEO_OPTION_FRAMEBUFFER, (uint32_t *)gpu_backbuffer);
     }
+
+    vPortFree(draw_buffer);
+    aligned_free(gpu_buffer1);
+    aligned_free(gpu_buffer2);
     return 0;
 }

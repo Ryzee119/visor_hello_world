@@ -21,11 +21,11 @@ eax_store: .long 0
     \name :
         cld
 
-        // Stack layout looks like:
-        // (TOP) ERROR CODE (0x00), EIP (0x04), CS (0x08), EFLAGS (0x0C)
-        // Annoyingly ERROR CODE is not present for all exceptions
+        movl eax_store, %eax // Store without changing stack as we're about to clobber it
 
-        movl eax_store, %eax // Store without changing stack
+        // Stack layout looks like:
+        // (TOP) *ERROR CODE (0x00), EIP (0x04), CS (0x08), EFLAGS (0x0C)
+        // *ERROR CODE is not present for all exceptions so have to handle that
 
         .if \error_code_present == "Y"
             // If error code is present, store it then remove from stack

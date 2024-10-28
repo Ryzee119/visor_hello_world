@@ -6,7 +6,6 @@
 uint8_t current_encoder_address = 0;
 uint32_t current_output_mode_coding = 0;
 display_information_t xbox_display_info;
-void *current_frame_buffer = NULL;
 
 // https://github.com/xemu-project/xemu/blob/8707d2aa2626063cb67b5ea20382584a0848dce7/hw/xbox/nv2a/nv2a.c#L87
 typedef enum xbox_gpu_register
@@ -139,10 +138,14 @@ static void xbox_gpu_set_output_enable(uint8_t enabled)
 // Fortunately there isnt too many writes (~188). I used heuristics to work out patterns.
 void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, void *frame_buffer)
 {
+    const VIDEO_MODE_SETTING *mode_settings = xbox_video_get_settings(mode_coding);
+
     const uint8_t pramdac_index = ((mode_coding & 0x00FF0000) >> 16);
     const uint8_t prmcio_index = (mode_coding & 0x0000FF00) >> 8;
     const uint32_t bpp = (format == ARGB8888) ? 4 : 2;
-    uint32_t pitch, width = 0, temp;
+    const uint32_t width = mode_settings->width;
+    const uint32_t pitch = (width * bpp) >> 3;
+    uint32_t temp;
 
     // Work out which PRMCIO registers we should use
     const uint8_t *prmcio_offsets = PRMCIO_OFFSETS;
@@ -166,14 +169,6 @@ void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, voi
     assert(pramdac_values != NULL);
     assert(prmcio_values != NULL);
 
-    // Find width from PRAMDAC_WIDTH_OFFSET so we can calculate pitch
-    for (uint8_t i = 0; i < PRAMDAC_COUNT; i++) {
-        if (pramdac_offsets[i] == PRAMDAC_WIDTH_OFFSET) {
-            width = pramdac_values[i] + 1;
-            break;
-        }
-    }
-
     xbox_gpu_output32(PFB, 0x200, 0x03070103);
     xbox_gpu_output32(PFB, 0x204, 0x11448000);
 
@@ -187,9 +182,6 @@ void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, voi
 
     // FIXME, can optimise this if we are already in the same mode (only changing xbox_framebuffer_format_t)
     // if(current_output_mode_coding == mode_coding)
-
-    // The value sent to the GPU is pitch/8
-    pitch = (width * bpp) >> 3;
 
     temp = 0;
     xbox_video_set_option(XBOX_VIDEO_OPTION_VIDEO_ENABLE, &temp);
@@ -251,6 +243,7 @@ void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, voi
 
     xbox_display_info.bytes_per_pixel = bpp;
     xbox_display_info.frame_buffer = frame_buffer;
+    xbox_display_info.refresh_rate = mode_settings->refresh;
     xbox_display_info.width = xbox_display_info.hvalid_end - xbox_display_info.hvalid_start + 1;
     xbox_display_info.height = xbox_display_info.vvalid_end - xbox_display_info.vvalid_start + 1;
 
@@ -345,7 +338,6 @@ void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, voi
     xbox_timer_spin_wait(XBOX_TIMER_US_TO_TICKS(2));
 
     xbox_gpu_output32(PCRTC, 0x800, (uint32_t)frame_buffer);
-    current_frame_buffer = frame_buffer;
 
     // xbox_gpu_output_clut(0, 0, 0, 0);
 
@@ -470,7 +462,6 @@ uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter)
             break;
         case XBOX_VIDEO_OPTION_FRAMEBUFFER:
             xbox_gpu_output32(PCRTC, 0x800, (uint32_t)parameter);
-            current_frame_buffer = (void *)parameter;
             xbox_display_info.frame_buffer = (void *)parameter;
             break;
         default:
@@ -527,7 +518,7 @@ static VIDEO_MODE_SETTING video_modes[] = {
     {0x04020204, 720, 480, 60, XBOX_VIDEO_REGION_NTSCJ, XBOX_AV_PACK_SVIDEO}, // 720x480 NTSCJ 60Hz
 };
 
-const VIDEO_MODE_SETTING *video_get_settings(uint32_t mode_coding)
+const VIDEO_MODE_SETTING *xbox_video_get_settings(uint32_t mode_coding)
 {
     for (int i = 0; i < XBOX_ARRAY_SIZE(video_modes); i++) {
         if (video_modes[i].mode == mode_coding) {
@@ -537,7 +528,7 @@ const VIDEO_MODE_SETTING *video_get_settings(uint32_t mode_coding)
     return NULL;
 }
 
-uint32_t video_get_suitable_mode_coding(uint32_t width, uint32_t height)
+uint32_t xbox_video_get_suitable_mode_coding(uint32_t width, uint32_t height)
 {
     xbox_av_pack_t avpack;
     xbox_eeprom_t *eeprom = xbox_eeprom_get();
@@ -570,4 +561,8 @@ void apply_all_video_modes(void *fb)
                 video_modes[i].width, video_modes[i].height, video_modes[i].refresh);
         xbox_video_init(video_modes[i].mode, ARGB8888, fb);
     }
+}
+
+void xbox_video_flush_cache() {
+    __asm__ volatile("sfence");
 }
