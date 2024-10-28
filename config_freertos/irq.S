@@ -33,7 +33,7 @@ eax_store: .long 0
             movl %eax, exception_frame
             addl $4, %esp
         .else
-            movl $0, exception_frame+0 // Otherwise set to 0
+            movl $0, exception_frame // Otherwise set to 0
         .endif
 
         // Stack layout looks like:
