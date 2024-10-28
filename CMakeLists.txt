@@ -76,6 +76,9 @@ target_link_libraries(${OUTPUT_NAME} PRIVATE c arith64 freertos_kernel pc xbox t
 add_custom_command(TARGET ${OUTPUT_NAME} POST_BUILD
     COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/scripts/calculate_usage.py ${CMAKE_BINARY_DIR}/${OUTPUT_NAME}
 
+    # Copy the original elf for debugging
+    COMMAND cp ${CMAKE_BINARY_DIR}/${OUTPUT_NAME} ${CMAKE_BINARY_DIR}/original.elf
+
     COMMAND echo "Compressing ROM..."
     COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/scripts/compress_rom.py
                                  ${CMAKE_BINARY_DIR}/${OUTPUT_NAME} ${CMAKE_BINARY_DIR}/compressed.bin

@@ -9,34 +9,56 @@
 
 // create 3 dwords to store EFLAGS, CS, and EIP
 .section .data
-exception_frame: .long 0, 0, 0
+exception_frame: .long 0, 0, 0, 0
+eax_store: .long 0
 
 .text
 
-.macro EXCEPTION_WRAPPER name, function
+.macro EXCEPTION_WRAPPER name, function, error_code_present
     .align 4
     .global \name
     .func \name
     \name :
         cld
-        // Save the contents of eax, then store the exception frame
-        pushl %eax
-        movl 0x4(%esp), %eax
-        movl %eax, exception_frame
 
-        movl 0x8(%esp), %eax
-        movl %eax, exception_frame+4
+        // Stack layout looks like:
+        // (TOP) ERROR CODE (0x00), EIP (0x04), CS (0x08), EFLAGS (0x0C)
+        // Annoyingly ERROR CODE is not present for all exceptions
 
-        movl 0x0C(%esp), %eax
-        movl %eax, exception_frame+8
-        popl %eax 
+        movl eax_store, %eax // Store without changing stack
 
+        .if \error_code_present == "Y"
+            // If error code is present, store it then remove from stack
+            movl 0x00(%esp), %eax
+            movl %eax, exception_frame
+            addl $4, %esp
+        .else
+            movl $0, exception_frame+0 // Otherwise set to 0
+        .endif
+
+        // Stack layout looks like:
+        // (TOP) EIP (0x00), CS (0x04), EFLAGS (0x08)
+
+        movl 0x00(%esp), %eax
+        movl %eax, exception_frame + 4 // EIP
+
+        movl 0x04(%esp), %eax
+        movl %eax, exception_frame + 8 // CS
+
+        movl 0x08(%esp), %eax
+        movl %eax, exception_frame + 12 // EFLAGS
+
+        // Restore eax
+        movl eax_store, %eax
+
+        // Call the exception handler function
         pusha
-        pushl exception_frame + 8    // EFLAGS
-        pushl exception_frame + 4    // CS
-        pushl exception_frame + 0    // EIP
+        pushl exception_frame + 12 // EFLAGS
+        pushl exception_frame + 8 // CS
+        pushl exception_frame + 4 // EIP
+        pushl exception_frame + 0 // ERROR CODE
         call \function
-        addl $12, %esp
+        addl $16, %esp
         popa
 
         hlt
@@ -67,23 +89,24 @@ exception_frame: .long 0, 0, 0
     .endfunc
 .endm
 
-EXCEPTION_WRAPPER freertos_exception0, exception_handler0
-EXCEPTION_WRAPPER freertos_exception1, exception_handler1
-EXCEPTION_WRAPPER freertos_exception2, exception_handler2
-EXCEPTION_WRAPPER freertos_exception3, exception_handler3
-EXCEPTION_WRAPPER freertos_exception4, exception_handler4
-EXCEPTION_WRAPPER freertos_exception5, exception_handler5
-EXCEPTION_WRAPPER freertos_exception6, exception_handler6
-EXCEPTION_WRAPPER freertos_exception7, exception_handler7
-EXCEPTION_WRAPPER freertos_exception8, exception_handler8
-EXCEPTION_WRAPPER freertos_exception9, exception_handler9
-EXCEPTION_WRAPPER freertos_exception10, exception_handler10
-EXCEPTION_WRAPPER freertos_exception11, exception_handler11
-EXCEPTION_WRAPPER freertos_exception12, exception_handler12
-EXCEPTION_WRAPPER freertos_exception13, exception_handler13
-EXCEPTION_WRAPPER freertos_exception14, exception_handler14
-EXCEPTION_WRAPPER freertos_exception15, exception_handler15
-EXCEPTION_WRAPPER freertos_exception16, exception_handler16
+// http://wiki.osdev.org/Exceptions
+EXCEPTION_WRAPPER freertos_exception0, exception_handler0, "N"
+EXCEPTION_WRAPPER freertos_exception1, exception_handler1, "N"
+EXCEPTION_WRAPPER freertos_exception2, exception_handler2, "N"
+EXCEPTION_WRAPPER freertos_exception3, exception_handler3, "N"
+EXCEPTION_WRAPPER freertos_exception4, exception_handler4, "N"
+EXCEPTION_WRAPPER freertos_exception5, exception_handler5, "N"
+EXCEPTION_WRAPPER freertos_exception6, exception_handler6, "N"
+EXCEPTION_WRAPPER freertos_exception7, exception_handler7, "N"
+EXCEPTION_WRAPPER freertos_exception8, exception_handler8, "Y"
+EXCEPTION_WRAPPER freertos_exception9, exception_handler9, "N"
+EXCEPTION_WRAPPER freertos_exception10, exception_handler10, "Y"
+EXCEPTION_WRAPPER freertos_exception11, exception_handler11, "Y"
+EXCEPTION_WRAPPER freertos_exception12, exception_handler12, "Y"
+EXCEPTION_WRAPPER freertos_exception13, exception_handler13, "Y"
+EXCEPTION_WRAPPER freertos_exception14, exception_handler14, "Y"
+EXCEPTION_WRAPPER freertos_exception15, exception_handler15, "N"
+EXCEPTION_WRAPPER freertos_exception16, exception_handler16, "N"
 
 INTERRUPT_WRAPPER freertos_usb0_interrupt, usb0_handler, "pic1"
 INTERRUPT_WRAPPER freertos_gpu_interrupt, gpu_handler, "pic1"

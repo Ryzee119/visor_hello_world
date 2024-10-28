@@ -74,8 +74,6 @@ static void freertos_entry(void *parameters)
         printf_ts("[FS] Error mounting drive D as ISO9660\n");
     }
 
-    printf_ts("[FS] Filesystem mounted\n");
-
     xTaskCreate(doom_task, "Doom!", configMINIMAL_STACK_SIZE * 2, NULL, THREAD_PRIORITY_NORMAL, NULL);
 
     xbox_led_output(XLED_GREEN, XLED_GREEN, XLED_GREEN, XLED_GREEN);

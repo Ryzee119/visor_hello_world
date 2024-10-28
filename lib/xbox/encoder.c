@@ -105,8 +105,8 @@ void xbox_encoder_configure(uint32_t mode_coding, display_information_t *display
 
     const uint8_t is_hd_interlaced = (height == 1080); // Surely a better way to check this
     const uint8_t is_sd_pal50 = (mode_coding & 0x40000000) ? 1 : 0;
-    const uint8_t is_sd_pal60 = ((mode_settings->dwStandard == VIDEO_REGION_PAL) && is_sd_pal50 == 0) ? 1 : 0;
-    const uint8_t is_sd_ntscj = (mode_settings->dwStandard == VIDEO_REGION_NTSCJ) ? 1 : 0;
+    const uint8_t is_sd_pal60 = ((mode_settings->video_region == XBOX_VIDEO_REGION_PAL) && is_sd_pal50 == 0) ? 1 : 0;
+    const uint8_t is_sd_ntscj = (mode_settings->video_region == XBOX_VIDEO_REGION_NTSCJ) ? 1 : 0;
     const uint8_t is_sd_scart = (mode_coding & 0x20000000) ? 1 : 0;
     const uint8_t is_sd_yuv = (mode_coding == 0x48030314) | (mode_coding == 0x48040415) | (mode_coding == 0x08010119) |
                               (mode_coding == 0x0802021a) | (mode_coding == 0x0801010d) |
@@ -444,7 +444,7 @@ void xbox_encoder_configure(uint32_t mode_coding, display_information_t *display
 
             // Weirdly, xbox only does this if EEPROM is set to NTSCJ? Surely we should do it for all NTSCJ formats so
             // we do that
-            if ((mode_settings->dwStandard == VIDEO_REGION_NTSCJ) &&
+            if ((mode_settings->video_region == XBOX_VIDEO_REGION_NTSCJ) &&
                 (mode_coding == 0x0802020e || mode_coding == 0x0801010d)) {
                 FOCUS_OUTPUT_BYTE(FOCUS_SDTVO_BLACK_LVL_16, 0x3C);
             }

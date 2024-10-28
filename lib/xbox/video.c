@@ -303,9 +303,10 @@ void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, voi
     xbox_gpu_output_gra(0x07, 0x0F);
     xbox_gpu_output_gra(0x08, 0xFF);
 
-    const uint8_t vga_attr[] = {0x00, 0x00, 0x01, 0x01, 0x02, 0x02, 0x03, 0x03, 0x04, 0x04, 0x05, 0x05, 0x06, 0x06, 0x07,
-                                0x07, 0x08, 0x08, 0x09, 0x09, 0x0A, 0x0A, 0x0B, 0x0B, 0x0C, 0x0C, 0x0D, 0x0D, 0x0E, 0x0E,
-                                0x0F, 0x0F, 0x10, 0x01, 0x11, 0x4A, 0x12, 0x0F, 0x13, 0x00, 0x14, 0x00, 0x20};
+    const uint8_t vga_attr[] = {0x00, 0x00, 0x01, 0x01, 0x02, 0x02, 0x03, 0x03, 0x04, 0x04, 0x05,
+                                0x05, 0x06, 0x06, 0x07, 0x07, 0x08, 0x08, 0x09, 0x09, 0x0A, 0x0A,
+                                0x0B, 0x0B, 0x0C, 0x0C, 0x0D, 0x0D, 0x0E, 0x0E, 0x0F, 0x0F, 0x10,
+                                0x01, 0x11, 0x4A, 0x12, 0x0F, 0x13, 0x00, 0x14, 0x00, 0x20};
     for (uint8_t i = 0; i < XBOX_ARRAY_SIZE(vga_attr); i++) {
         xbox_gpu_output08(PRMCIO, 0x3C0, vga_attr[i]);
     }
@@ -332,10 +333,12 @@ void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, voi
     xbox_gpu_output32(PRAMDAC, 0x6A0, 0x01);
     xbox_gpu_output_crtc(0x28, ((bpp == 4) ? 0x83 : 0x82));
 
-    for(int i = 0; i < 3; i++) {
-		while((mmio_input_byte(PCI_GPU_MEMORY_REGISTER_BASE_0 + 0x006013da) & 0x08) != 0x00);
-		while((mmio_input_byte(PCI_GPU_MEMORY_REGISTER_BASE_0 + 0x006013da) & 0x08) == 0x00);
-	}
+    for (int i = 0; i < 3; i++) {
+        while ((mmio_input_byte(PCI_GPU_MEMORY_REGISTER_BASE_0 + 0x006013da) & 0x08) != 0x00)
+            ;
+        while ((mmio_input_byte(PCI_GPU_MEMORY_REGISTER_BASE_0 + 0x006013da) & 0x08) == 0x00)
+            ;
+    }
 
     xbox_gpu_output32(PRAMDAC, 0x880, (pramdac_index == 7) ? 0x21101101 : 0x21101100);
 
@@ -353,19 +356,23 @@ void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, voi
 
 #if (0)
     XPRINTF("Display Settings for mode %08x, bpp %d:\n", mode_coding, bpp);
-    XPRINTF("xbox_display_info.vdisplay_end: %d %08x\n", xbox_display_info.vdisplay_end, xbox_display_info.vdisplay_end);
+    XPRINTF("xbox_display_info.vdisplay_end: %d %08x\n", xbox_display_info.vdisplay_end,
+            xbox_display_info.vdisplay_end);
     XPRINTF("xbox_display_info.vtotal: %d %08x\n", xbox_display_info.vtotal, xbox_display_info.vtotal);
     XPRINTF("xbox_display_info.vcrtc: %d %08x\n", xbox_display_info.vcrtc, xbox_display_info.vcrtc);
     XPRINTF("xbox_display_info.vsync_start: %d %08x\n", xbox_display_info.vsync_start, xbox_display_info.vsync_start);
     XPRINTF("xbox_display_info.vsync_end: %d %08x\n", xbox_display_info.vsync_end, xbox_display_info.vsync_end);
-    XPRINTF("xbox_display_info.vvalid_start: %d %08x\n", xbox_display_info.vvalid_start, xbox_display_info.vvalid_start);
+    XPRINTF("xbox_display_info.vvalid_start: %d %08x\n", xbox_display_info.vvalid_start,
+            xbox_display_info.vvalid_start);
     XPRINTF("xbox_display_info.vvalid_end: %d %08x\n", xbox_display_info.vvalid_end, xbox_display_info.vvalid_end);
-    XPRINTF("xbox_display_info.hdisplay_end: %d %08x\n", xbox_display_info.hdisplay_end, xbox_display_info.hdisplay_end);
+    XPRINTF("xbox_display_info.hdisplay_end: %d %08x\n", xbox_display_info.hdisplay_end,
+            xbox_display_info.hdisplay_end);
     XPRINTF("xbox_display_info.htotal: %d %08x\n", xbox_display_info.htotal, xbox_display_info.htotal);
     XPRINTF("xbox_display_info.hcrtc: %d %08x\n", xbox_display_info.hcrtc, xbox_display_info.hcrtc);
     XPRINTF("xbox_display_info.hsync_start: %d %08x\n", xbox_display_info.hsync_start, xbox_display_info.hsync_start);
     XPRINTF("xbox_display_info.hsync_end: %d %08x\n", xbox_display_info.hsync_end, xbox_display_info.hsync_end);
-    XPRINTF("xbox_display_info.hvalid_start: %d %08x\n", xbox_display_info.hvalid_start, xbox_display_info.hvalid_start);
+    XPRINTF("xbox_display_info.hvalid_start: %d %08x\n", xbox_display_info.hvalid_start,
+            xbox_display_info.hvalid_start);
     XPRINTF("xbox_display_info.hvalid_end: %d %08x\n", xbox_display_info.hvalid_end, xbox_display_info.hvalid_end);
 #endif
 }
@@ -379,7 +386,7 @@ uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter)
 {
     uint32_t temp;
     if (parameter == NULL) {
-        return VIDEO_RETURN_ERROR;
+        return XBOX_VIDEO_RETURN_ERROR;
     }
 
     if (current_encoder_address == 0) {
@@ -424,7 +431,7 @@ uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter)
                     }
                     break;
                 default:
-                    return VIDEO_RETURN_ERROR;
+                    return XBOX_VIDEO_RETURN_ERROR;
             }
             break;
         case XBOX_VIDEO_OPTION_VIDEO_FLICKER_FILTER:
@@ -446,7 +453,7 @@ uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter)
 
                     break;
                 default:
-                    return VIDEO_RETURN_ERROR;
+                    return XBOX_VIDEO_RETURN_ERROR;
             }
             break;
         case XBOX_VIDEO_OPTION_VIDEO_SOFTEN_FILTER:
@@ -458,7 +465,7 @@ uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter)
                 case XBOX_SMBUS_ADDRESS_ENCODER_FOCUS:
                     break;
                 default:
-                    return VIDEO_RETURN_ERROR;
+                    return XBOX_VIDEO_RETURN_ERROR;
             }
             break;
         case XBOX_VIDEO_OPTION_FRAMEBUFFER:
@@ -467,74 +474,100 @@ uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter)
             xbox_display_info.frame_buffer = (void *)parameter;
             break;
         default:
-            return VIDEO_RETURN_ERROR;
+            return XBOX_VIDEO_RETURN_ERROR;
 
             break;
     }
-    return VIDEO_RETURN_SUCCESS;
+    return XBOX_VIDEO_RETURN_SUCCESS;
 }
 
 static VIDEO_MODE_SETTING video_modes[] = {
-    {0x44030307, 640, 480, 50, VIDEO_REGION_PAL, AV_PACK_STANDARD},   // 640x480 PAL 50Hz
-    {0x44040408, 720, 480, 50, VIDEO_REGION_PAL, AV_PACK_STANDARD},   // 720x480 PAL 50Hz
-    {0x0401010B, 640, 480, 60, VIDEO_REGION_PAL, AV_PACK_STANDARD},   // 640x480 PAL 60Hz
-    {0x0402020C, 720, 480, 60, VIDEO_REGION_PAL, AV_PACK_STANDARD},   // 720x480 PAL 60Hz
-    {0x04010101, 640, 480, 60, VIDEO_REGION_NTSCM, AV_PACK_STANDARD}, // 640x480 NTSCM 60Hz
-    {0x04020202, 720, 480, 60, VIDEO_REGION_NTSCM, AV_PACK_STANDARD}, // 720x480 NTSCM 60Hz
-    {0x04010103, 640, 480, 60, VIDEO_REGION_NTSCJ, AV_PACK_STANDARD}, // 640x480 NTSCJ 60Hz
-    {0x04020204, 720, 480, 60, VIDEO_REGION_NTSCJ, AV_PACK_STANDARD}, // 720x480 NTSCJ 60Hz
+    {0x44030307, 640, 480, 50, XBOX_VIDEO_REGION_PAL, XBOX_AV_PACK_STANDARD},   // 640x480 PAL 50Hz
+    {0x44040408, 720, 480, 50, XBOX_VIDEO_REGION_PAL, XBOX_AV_PACK_STANDARD},   // 720x480 PAL 50Hz
+    {0x0401010B, 640, 480, 60, XBOX_VIDEO_REGION_PAL, XBOX_AV_PACK_STANDARD},   // 640x480 PAL 60Hz
+    {0x0402020C, 720, 480, 60, XBOX_VIDEO_REGION_PAL, XBOX_AV_PACK_STANDARD},   // 720x480 PAL 60Hz
+    {0x04010101, 640, 480, 60, XBOX_VIDEO_REGION_NTSCM, XBOX_AV_PACK_STANDARD}, // 640x480 NTSCM 60Hz
+    {0x04020202, 720, 480, 60, XBOX_VIDEO_REGION_NTSCM, XBOX_AV_PACK_STANDARD}, // 720x480 NTSCM 60Hz
+    {0x04010103, 640, 480, 60, XBOX_VIDEO_REGION_NTSCJ, XBOX_AV_PACK_STANDARD}, // 640x480 NTSCJ 60Hz
+    {0x04020204, 720, 480, 60, XBOX_VIDEO_REGION_NTSCJ, XBOX_AV_PACK_STANDARD}, // 720x480 NTSCJ 60Hz
 
-    {0x60030307, 640, 480, 50, VIDEO_REGION_PAL, AV_PACK_SCART},   // 640x480 PAL 50Hz RGB
-    {0x60040408, 720, 480, 50, VIDEO_REGION_PAL, AV_PACK_SCART},   // 720x480 PAL 50Hz RGB
-    {0x2001010B, 640, 480, 60, VIDEO_REGION_PAL, AV_PACK_SCART},   // 640x480 PAL 60Hz RGB
-    {0x2002020C, 720, 480, 60, VIDEO_REGION_PAL, AV_PACK_SCART},   // 720x480 PAL 60Hz RGB
-    {0x20010101, 640, 480, 60, VIDEO_REGION_NTSCM, AV_PACK_SCART}, // 640x480 NTSCM 60Hz RGB
-    {0x20020202, 720, 480, 60, VIDEO_REGION_NTSCM, AV_PACK_SCART}, // 720x480 NTSCM 60Hz RGB
-    {0x20010103, 640, 480, 60, VIDEO_REGION_NTSCJ, AV_PACK_SCART}, // 640x480 NTSCJ 60Hz RGB
-    {0x20020204, 720, 480, 60, VIDEO_REGION_NTSCJ, AV_PACK_SCART}, // 720x480 NTSCJ 60Hz RGB
+    {0x60030307, 640, 480, 50, XBOX_VIDEO_REGION_PAL, XBOX_AV_PACK_SCART},   // 640x480 PAL 50Hz RGB
+    {0x60040408, 720, 480, 50, XBOX_VIDEO_REGION_PAL, XBOX_AV_PACK_SCART},   // 720x480 PAL 50Hz RGB
+    {0x2001010B, 640, 480, 60, XBOX_VIDEO_REGION_PAL, XBOX_AV_PACK_SCART},   // 640x480 PAL 60Hz RGB
+    {0x2002020C, 720, 480, 60, XBOX_VIDEO_REGION_PAL, XBOX_AV_PACK_SCART},   // 720x480 PAL 60Hz RGB
+    {0x20010101, 640, 480, 60, XBOX_VIDEO_REGION_NTSCM, XBOX_AV_PACK_SCART}, // 640x480 NTSCM 60Hz RGB
+    {0x20020202, 720, 480, 60, XBOX_VIDEO_REGION_NTSCM, XBOX_AV_PACK_SCART}, // 720x480 NTSCM 60Hz RGB
+    {0x20010103, 640, 480, 60, XBOX_VIDEO_REGION_NTSCJ, XBOX_AV_PACK_SCART}, // 640x480 NTSCJ 60Hz RGB
+    {0x20020204, 720, 480, 60, XBOX_VIDEO_REGION_NTSCJ, XBOX_AV_PACK_SCART}, // 720x480 NTSCJ 60Hz RGB
 
-    {0x48030314, 640, 480, 50, VIDEO_REGION_PAL, AV_PACK_HDTV},     // 640x480i PAL 50Hz
-    {0x48040415, 720, 480, 50, VIDEO_REGION_PAL, AV_PACK_HDTV},     // 720x480i PAL 50Hz
-    {0x08010119, 640, 480, 60, VIDEO_REGION_PAL, AV_PACK_HDTV},     // 640x480i PAL 60Hz
-    {0x0802021a, 720, 480, 60, VIDEO_REGION_PAL, AV_PACK_HDTV},     // 720x480i PAL 60Hz
-    {0x0801010d, 640, 480, 60, VIDEO_REGION_NTSCM, AV_PACK_HDTV},   // 640x480i NTSCM 60Hz
-    {0x0802020e, 720, 480, 60, VIDEO_REGION_NTSCM, AV_PACK_HDTV},   // 720x480i NTSCM 60Hz
-    {0x88070701, 640, 480, 60, VIDEO_REGION_NTSCM, AV_PACK_HDTV},   // 640x480p NTSCM 60Hz
-    {0x88080801, 720, 480, 60, VIDEO_REGION_NTSCM, AV_PACK_HDTV},   // 720x480p NTSCM 60Hz
-    {0x880B0A02, 1280, 720, 60, VIDEO_REGION_NTSCM, AV_PACK_HDTV},  // 1280x720p NTSCM 60Hz
-    {0x880E0C03, 1920, 1080, 60, VIDEO_REGION_NTSCM, AV_PACK_HDTV}, // 1920x1080i NTSCM 60Hz
-    {0x0801010d, 640, 480, 60, VIDEO_REGION_NTSCJ, AV_PACK_HDTV},   // 640x480i NTSCJ 60Hz
-    {0x0802020e, 720, 480, 60, VIDEO_REGION_NTSCJ, AV_PACK_HDTV},   // 720x480i NTSCJ 60Hz
-    {0x88070701, 640, 480, 60, VIDEO_REGION_NTSCJ, AV_PACK_HDTV},   // 640x480p NTSCJ 60Hz
-    {0x88080801, 720, 480, 60, VIDEO_REGION_NTSCJ, AV_PACK_HDTV},   // 720x480p NTSCJ 60Hz
-    {0x880B0A02, 1280, 720, 60, VIDEO_REGION_NTSCJ, AV_PACK_HDTV},  // 1280x720p NTSCJ 60Hz
-    {0x880E0C03, 1920, 1080, 60, VIDEO_REGION_NTSCJ, AV_PACK_HDTV}, // 1920x1080i NTSCJ 60Hz
+    {0x48030314, 640, 480, 50, XBOX_VIDEO_REGION_PAL, XBOX_AV_PACK_HDTV},     // 640x480i PAL 50Hz
+    {0x48040415, 720, 480, 50, XBOX_VIDEO_REGION_PAL, XBOX_AV_PACK_HDTV},     // 720x480i PAL 50Hz
+    {0x08010119, 640, 480, 60, XBOX_VIDEO_REGION_PAL, XBOX_AV_PACK_HDTV},     // 640x480i PAL 60Hz
+    {0x0802021a, 720, 480, 60, XBOX_VIDEO_REGION_PAL, XBOX_AV_PACK_HDTV},     // 720x480i PAL 60Hz
+    {0x0801010d, 640, 480, 60, XBOX_VIDEO_REGION_NTSCM, XBOX_AV_PACK_HDTV},   // 640x480i NTSCM 60Hz
+    {0x0802020e, 720, 480, 60, XBOX_VIDEO_REGION_NTSCM, XBOX_AV_PACK_HDTV},   // 720x480i NTSCM 60Hz
+    {0x88070701, 640, 480, 60, XBOX_VIDEO_REGION_NTSCM, XBOX_AV_PACK_HDTV},   // 640x480p NTSCM 60Hz
+    {0x88080801, 720, 480, 60, XBOX_VIDEO_REGION_NTSCM, XBOX_AV_PACK_HDTV},   // 720x480p NTSCM 60Hz
+    {0x880B0A02, 1280, 720, 60, XBOX_VIDEO_REGION_NTSCM, XBOX_AV_PACK_HDTV},  // 1280x720p NTSCM 60Hz
+    {0x880E0C03, 1920, 1080, 60, XBOX_VIDEO_REGION_NTSCM, XBOX_AV_PACK_HDTV}, // 1920x1080i NTSCM 60Hz
+    {0x0801010d, 640, 480, 60, XBOX_VIDEO_REGION_NTSCJ, XBOX_AV_PACK_HDTV},   // 640x480i NTSCJ 60Hz
+    {0x0802020e, 720, 480, 60, XBOX_VIDEO_REGION_NTSCJ, XBOX_AV_PACK_HDTV},   // 720x480i NTSCJ 60Hz
+    {0x88070701, 640, 480, 60, XBOX_VIDEO_REGION_NTSCJ, XBOX_AV_PACK_HDTV},   // 640x480p NTSCJ 60Hz
+    {0x88080801, 720, 480, 60, XBOX_VIDEO_REGION_NTSCJ, XBOX_AV_PACK_HDTV},   // 720x480p NTSCJ 60Hz
+    {0x880B0A02, 1280, 720, 60, XBOX_VIDEO_REGION_NTSCJ, XBOX_AV_PACK_HDTV},  // 1280x720p NTSCJ 60Hz
+    {0x880E0C03, 1920, 1080, 60, XBOX_VIDEO_REGION_NTSCJ, XBOX_AV_PACK_HDTV}, // 1920x1080i NTSCJ 60Hz
 
-    {0x44030307, 640, 480, 50, VIDEO_REGION_PAL, AV_PACK_SVIDEO},   // 640x480 PAL 50Hz
-    {0x44040408, 720, 480, 50, VIDEO_REGION_PAL, AV_PACK_SVIDEO},   // 720x480 PAL 50Hz
-    {0x0401010B, 640, 480, 60, VIDEO_REGION_PAL, AV_PACK_SVIDEO},   // 640x480 PAL 60Hz
-    {0x0402020C, 720, 480, 60, VIDEO_REGION_PAL, AV_PACK_SVIDEO},   // 720x480 PAL 60Hz
-    {0x04010101, 640, 480, 60, VIDEO_REGION_NTSCM, AV_PACK_SVIDEO}, // 640x480 NTSCM 60Hz
-    {0x04020202, 720, 480, 60, VIDEO_REGION_NTSCM, AV_PACK_SVIDEO}, // 720x480 NTSCM 60Hz
-    {0x04010103, 640, 480, 60, VIDEO_REGION_NTSCJ, AV_PACK_SVIDEO}, // 640x480 NTSCJ 60Hz
-    {0x04020204, 720, 480, 60, VIDEO_REGION_NTSCJ, AV_PACK_SVIDEO}, // 720x480 NTSCJ 60Hz
+    {0x44030307, 640, 480, 50, XBOX_VIDEO_REGION_PAL, XBOX_AV_PACK_SVIDEO},   // 640x480 PAL 50Hz
+    {0x44040408, 720, 480, 50, XBOX_VIDEO_REGION_PAL, XBOX_AV_PACK_SVIDEO},   // 720x480 PAL 50Hz
+    {0x0401010B, 640, 480, 60, XBOX_VIDEO_REGION_PAL, XBOX_AV_PACK_SVIDEO},   // 640x480 PAL 60Hz
+    {0x0402020C, 720, 480, 60, XBOX_VIDEO_REGION_PAL, XBOX_AV_PACK_SVIDEO},   // 720x480 PAL 60Hz
+    {0x04010101, 640, 480, 60, XBOX_VIDEO_REGION_NTSCM, XBOX_AV_PACK_SVIDEO}, // 640x480 NTSCM 60Hz
+    {0x04020202, 720, 480, 60, XBOX_VIDEO_REGION_NTSCM, XBOX_AV_PACK_SVIDEO}, // 720x480 NTSCM 60Hz
+    {0x04010103, 640, 480, 60, XBOX_VIDEO_REGION_NTSCJ, XBOX_AV_PACK_SVIDEO}, // 640x480 NTSCJ 60Hz
+    {0x04020204, 720, 480, 60, XBOX_VIDEO_REGION_NTSCJ, XBOX_AV_PACK_SVIDEO}, // 720x480 NTSCJ 60Hz
 };
 
 const VIDEO_MODE_SETTING *video_get_settings(uint32_t mode_coding)
 {
     for (int i = 0; i < XBOX_ARRAY_SIZE(video_modes); i++) {
-        if (video_modes[i].dwMode == mode_coding) {
+        if (video_modes[i].mode == mode_coding) {
             return &video_modes[i];
         }
     }
     return NULL;
 }
 
+uint32_t video_get_suitable_mode_coding(uint32_t width, uint32_t height)
+{
+    xbox_av_pack_t avpack;
+    xbox_eeprom_t *eeprom = xbox_eeprom_get();
+    xbox_video_region_t video_region = eeprom->factory_settings.video_standard & XBOX_EEPROM_VIDEO_STANDARD_MASK;
+    uint8_t refresh = 60;
+
+    if (xbox_smc_get_avpack(&avpack) < 0) {
+        return 0;
+    }
+
+    if (video_region == XBOX_VIDEO_REGION_PAL &&
+        !(eeprom->user_settings.video_settings & XBOX_EEPROM_VIDEO_SETTINGS_60HZ)) {
+        refresh = 50;
+    }
+
+    for (uint32_t i = 0; i < XBOX_ARRAY_SIZE(video_modes); i++) {
+        if (video_modes[i].width == width && video_modes[i].height == height && video_modes[i].refresh == refresh &&
+            video_modes[i].avpack == avpack && video_modes[i].video_region == video_region) {
+            return video_modes[i].mode;
+        }
+    }
+
+    return 0;
+}
+
 void apply_all_video_modes(void *fb)
 {
     for (int i = 0; i < XBOX_ARRAY_SIZE(video_modes); i++) {
-        XPRINTF("\r\n%d Mode: %08x, Width: %d, Height: %d, Refresh: %d, BPP: 32\r", i, video_modes[i].dwMode, video_modes[i].width, video_modes[i].height,
-                video_modes[i].refresh);
-        xbox_video_init(video_modes[i].dwMode, ARGB8888, fb);
+        XPRINTF("\r\n%d Mode: %08x, Width: %d, Height: %d, Refresh: %d, BPP: 32\r", i, video_modes[i].mode,
+                video_modes[i].width, video_modes[i].height, video_modes[i].refresh);
+        xbox_video_init(video_modes[i].mode, ARGB8888, fb);
     }
 }

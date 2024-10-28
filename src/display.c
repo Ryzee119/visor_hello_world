@@ -10,10 +10,19 @@ void display_init()
     const int height = 480;
     const int bpp = 4;
 
+    uint32_t mode_coding = video_get_suitable_mode_coding(width, height);
+
+    // Invalid input, fallback to 640x480 NTSCM 60Hz to hopefully show something
+    if (mode_coding == 0) {
+        printf_ts("[DISPLAY] Invalid mode, falling back to 640x480 NTSCM 60Hz\n");
+        mode_coding = 0x04010101;
+    }
+
     uint8_t *fb = malloc(width * height * bpp);
     memset(fb, 0x00, width * height * bpp);
     fb = XBOX_GET_WRITE_COMBINE_PTR(fb);
-    xbox_video_init(0x44030307, (bpp == 2) ? RGB565 : ARGB8888, fb);
+
+    xbox_video_init(mode_coding, (bpp == 2) ? RGB565 : ARGB8888, fb);
 }
 
 void display_clear()
@@ -39,12 +48,19 @@ void display_get_cursor(uint32_t *x, uint32_t *y)
 
 void display_set_cursor(uint32_t x, uint32_t y)
 {
-    if (x < MARGIN) {
-        x = MARGIN;
+    const display_information_t *display = xbox_video_get_display_information();
+    if (!display->frame_buffer) {
+        return;
     }
-    if (y < MARGIN) {
-        y = MARGIN;
-    }
+
+    const uint32_t minx = MARGIN;
+    const uint32_t maxx = display->width - MARGIN - UNSCII_FONT_WIDTH;
+    const uint32_t miny = MARGIN;
+    const uint32_t maxy = display->height - MARGIN - UNSCII_FONT_HEIGHT;
+
+    x = XBOX_CLAMP(minx, x, maxx);
+    y = XBOX_CLAMP(miny, y, maxy);
+
     cursor_x = x;
     cursor_y = y;
 }
@@ -57,6 +73,9 @@ void display_write_char(const char c)
     }
 
     if (display->frame_buffer) {
+        uint16_t *fb16 = display->frame_buffer;
+        uint32_t *fb32 = display->frame_buffer;
+
         if (c == '\n') {
             cursor_x = MARGIN;
             cursor_y += UNSCII_FONT_HEIGHT;
@@ -72,26 +91,11 @@ void display_write_char(const char c)
             for (int h = 0; h < UNSCII_FONT_HEIGHT; h++) {
                 uint8_t mask = 0x80;
                 for (int w = 0; w < UNSCII_FONT_WIDTH; w++) {
-                    if (*glyph & (mask >>= 1)) {
-                        if (display->bytes_per_pixel == 2) {
-                            uint16_t *fb16 = display->frame_buffer;
-                            uint16_t *pixel = &fb16[(cursor_y + h) * display->width + cursor_x + w];
-                            *pixel = 0xFFFF;
-                        } else {
-                            uint32_t *fb32 = display->frame_buffer;
-                            uint32_t *pixel = &fb32[(cursor_y + h) * display->width + cursor_x + w];
-                            *pixel = 0xFFFFFFFF;
-                        }
+                    const uint32_t pixel = (cursor_y + h) * display->width + cursor_x + w;
+                    if (display->bytes_per_pixel == 2) {
+                        fb16[pixel] = (*glyph & (mask >>= 1)) ? 0xFFFF : 0x0000;
                     } else {
-                        if (display->bytes_per_pixel == 2) {
-                            uint16_t *fb16 = display->frame_buffer;
-                            uint16_t *pixel = &fb16[(cursor_y + h) * display->width + cursor_x + w];
-                            *pixel = 0x0000;
-                        } else {
-                            uint32_t *fb32 = display->frame_buffer;
-                            uint32_t *pixel = &fb32[(cursor_y + h) * display->width + cursor_x + w];
-                            *pixel = 0x00000000;
-                        }
+                        fb32[pixel] = (*glyph & (mask >>= 1)) ? 0xFFFFFFFF : 0xFF000000;
                     }
                 }
                 glyph++; // Next line of glyph
@@ -107,23 +111,23 @@ void display_write_char(const char c)
 
         // New page
         if (cursor_y + UNSCII_FONT_HEIGHT >= (display->height - MARGIN)) {
+#if (1)
             // Clear screen and start again
-            #if (1)
             display_clear();
             return;
+#else
             // Scroll up one row
-            #else
             const display_information_t *display = xbox_video_get_display_information();
             if (!display->frame_buffer) {
                 return;
             }
             const uint32_t pixel_total = display->width * display->height * display->bytes_per_pixel;
-            const uint32_t pixel_per_row =  display->width * UNSCII_FONT_HEIGHT * display->bytes_per_pixel;
+            const uint32_t pixel_per_row = display->width * UNSCII_FONT_HEIGHT * display->bytes_per_pixel;
             memcpy(display->frame_buffer, display->frame_buffer + pixel_per_row, pixel_total - pixel_per_row);
             memset(display->frame_buffer + pixel_total - pixel_per_row, 0x00, pixel_per_row);
             cursor_y -= UNSCII_FONT_HEIGHT;
             cursor_x = MARGIN;
-            #endif
+#endif
         }
     }
 }
