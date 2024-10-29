@@ -91,6 +91,13 @@ static inline void xbox_gpu_output32(xbox_gpu_register_t reg, uint32_t offset, u
     gpu_base[(reg + offset) / 4] = value;
 }
 
+static inline uint32_t xbox_gpu_input32(xbox_gpu_register_t reg, uint32_t offset)
+{
+    assert((offset & 3) == 0);
+    volatile uint32_t *gpu_base = (volatile uint32_t *)PCI_GPU_MEMORY_REGISTER_BASE_0;
+    return gpu_base[(reg + offset) / 4];
+}
+
 static inline void xbox_gpu_output08(xbox_gpu_register_t reg, uint32_t offset, uint8_t value)
 {
     volatile uint8_t *gpu_base = (volatile uint8_t *)PCI_GPU_MEMORY_REGISTER_BASE_0;
@@ -346,6 +353,8 @@ void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, voi
     temp = 1;
     xbox_video_set_option(XBOX_VIDEO_OPTION_VIDEO_ENABLE, &temp);
 
+    xbox_interrupt_enable(XBOX_PIC_GPU_IRQ, 1);
+
 #if (0)
     XPRINTF("Display Settings for mode %08x, bpp %d:\n", mode_coding, bpp);
     XPRINTF("xbox_display_info.vdisplay_end: %d %08x\n", xbox_display_info.vdisplay_end,
@@ -372,6 +381,33 @@ void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, voi
 const display_information_t *xbox_video_get_display_information()
 {
     return (const display_information_t *)&xbox_display_info;
+}
+
+static void *vblank_callback = NULL;
+void gpu_handler() {
+
+    // Disable and reset VBLANK interrupt
+    xbox_gpu_output32(PCRTC, 0x140, 0x00000000);
+    xbox_gpu_output32(PCRTC, 0x100, 0x00000001);
+
+    void *callback = vblank_callback;
+    if (callback) {
+        ((void (*)(void))callback)();
+    }
+}
+
+void xbox_video_do_vblank_irq_one_shot(void (*callback)(void))
+{
+    vblank_callback = callback;
+
+    // Enable hardware interrupts
+    xbox_gpu_output32(PMC, 0x140, 0x00000001); 
+
+    // Reset pending VBLANK interrupt
+    xbox_gpu_output32(PCRTC, 0x100, 0x00000001);
+
+    // Enable VBLANK interrupt
+    xbox_gpu_output32(PCRTC, 0x140, 0x00000001);
 }
 
 uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter)
@@ -563,6 +599,7 @@ void apply_all_video_modes(void *fb)
     }
 }
 
+// Perhaps last cache line when copying to write combine buffer is not flushed?
 void xbox_video_flush_cache() {
     __asm__ volatile("sfence");
 }

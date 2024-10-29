@@ -16,6 +16,7 @@
 #pragma GCC diagnostic pop
 
 static SemaphoreHandle_t doom_logic_mutex;
+static SemaphoreHandle_t doom_vblank_semaphore;
 
 uint8_t doom_initd = 0;
 int16_t doom_rightx = 0;
@@ -110,6 +111,11 @@ char *dooom_getenv(const char *var)
     return 0;
 }
 
+static void vblank_callback()
+{
+    xSemaphoreGiveFromISR(doom_vblank_semaphore, NULL);
+}
+
 int doom_entry(const char *wad_path)
 {
     const char *args[] = {"doom"};
@@ -131,11 +137,12 @@ int doom_entry(const char *wad_path)
     doom_initd = 1;
 
     doom_logic_mutex = xSemaphoreCreateMutex();
+    doom_vblank_semaphore = xSemaphoreCreateBinary();
     xTaskCreate(doom_sound_task, "DoomSound", configMINIMAL_STACK_SIZE, &doom_logic_mutex, THREAD_PRIORITY_NORMAL,
                 NULL);
 
     // Create our framebuffer output buffer
-    uint32_t *draw_buffer = pvPortMalloc(640 * 480 * 4);
+    uint32_t *draw_buffer = aligned_alloc(0x1000, 640 * 480 * 4);
     uint32_t *gpu_buffer1 = aligned_alloc(0x1000, 640 * 480 * 4);
     uint32_t *gpu_buffer2 = aligned_alloc(0x1000, 640 * 480 * 4);
     gpu_buffer1 = (uint32_t *)(((uint32_t)gpu_buffer1 + 0xFFF) & ~0xFFF);
@@ -162,14 +169,12 @@ int doom_entry(const char *wad_path)
         uint8_t *indexed_framebuffer = (uint8_t *)doom_get_framebuffer(1);
 
         // Prepare our output buffer
-        
+
         uint32_t *draw_buffer_cursor = draw_buffer;
-        
 
         uint32_t line = 0, flipflop = 0;
         const uint32_t FINAL_WIDTH = SCREENWIDTH * 2;
 
-#if (1)
         for (int pixel = 0; pixel < SCREENWIDTH * SCREENHEIGHT; pixel++) {
             uint32_t index = indexed_framebuffer[pixel] * 3;
 
@@ -205,9 +210,8 @@ int doom_entry(const char *wad_path)
             }
         }
 
-#endif
-
 #if (1)
+        // Draw FPS
         static int frames = 0;
         static uint32_t start_ticks_fps = 0;
         static uint32_t time = 0;
@@ -230,19 +234,19 @@ int doom_entry(const char *wad_path)
         }
 #endif
 
-        // It's very slow drawing directly to the write combine gpu backbuffer (< 10fps!), so we draw to a local buffer and then copy it over.
+        // Blit draw buffer to gpu buffer
         void *gpu_backbuffer = screen_buffer[backbuffer_index ^= 1];
         memcpy(gpu_backbuffer, draw_buffer, 640 * 480 * 4);
         xbox_video_flush_cache();
 
-        // Fixme, wait for vblank
-        xTaskDelayUntil(&start_frame, pdMS_TO_TICKS(1000 / refresh_rate));
+        xbox_video_do_vblank_irq_one_shot(vblank_callback);
+        xSemaphoreTake(doom_vblank_semaphore, portMAX_DELAY);
 
         xbox_video_set_option(XBOX_VIDEO_OPTION_FRAMEBUFFER, (uint32_t *)gpu_backbuffer);
     }
 
-    vPortFree(draw_buffer);
-    aligned_free(gpu_buffer1);
-    aligned_free(gpu_buffer2);
+    free(draw_buffer);
+    free(gpu_buffer1);
+    free(gpu_buffer2);
     return 0;
 }

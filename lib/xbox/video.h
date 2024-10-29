@@ -67,6 +67,7 @@ typedef struct _VIDEO_MODE_SETTING
 #define XBOX_VIDEO_MAKE_COLOR_RGB565(r, g, b)       (((r & 0x1F) << 11) | ((g & 0x3F) << 5) | (b & 0x1F))
 #define XBOX_VIDEO_MAKE_COLOUR_ARGB8888(a, r, g, b) (((a & 0xFF) << 24) | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (b & 0xFF))
 
+void xbox_video_do_vblank_irq_one_shot(void (*callback)(void));
 uint32_t xbox_video_get_suitable_mode_coding(uint32_t width, uint32_t height);
 void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, void *frame_buffer);
 uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter);
