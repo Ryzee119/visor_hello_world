@@ -39,7 +39,7 @@ Although we run doom, there's alot of boilerplate to make this work. The followi
 * Comprehensive C library included using picolibc.
 
 ## License:
-* Some code is based on (Cromwell)[https://github.com/XboxDev/cromwell] which is licensed under GPL2.
+* Some code is based on [Cromwell](https://github.com/XboxDev/cromwell) which is licensed under GPL2.
 * Code written by me is licensed under either MIT of CC0-1.0. See respective source files.
 * I use a bunch of external libraries. See below for licensing.
 
