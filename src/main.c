@@ -52,18 +52,6 @@ static void freertos_entry(void *parameters)
 
     display_init();
 
-     //Get frame buffer and draw some rects
-    //ARGB8888
-    const display_information_t *display = xbox_video_get_display_information();
-    uint32_t red = 0xFFFF0000;
-    uint32_t green = 0xFF00FF00;
-    uint32_t blue = 0xFF0000FF;
-    const uint32_t sz = 50;
-    draw_rect(red, 0, 0, sz, sz);
-    draw_rect(green, display->width - sz, 0, sz, sz);
-    draw_rect(blue, 0, display->height - sz, sz, sz);
-    draw_rect(green | red, display->width - sz, display->height - sz, sz, sz);
-
     interrupts_init();
 
     xbox_interrupt_enable(XBOX_PIC_SMC_IRQ, 1);
