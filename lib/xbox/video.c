@@ -644,4 +644,5 @@ void apply_all_video_modes(void *fb)
 void xbox_video_flush_cache()
 {
     __asm__ volatile("sfence");
+    __asm__ volatile("wbinvd ");
 }

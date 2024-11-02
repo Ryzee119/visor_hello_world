@@ -27,11 +27,10 @@ void draw_rect(uint32_t color, uint32_t x, uint32_t y, uint32_t width, uint32_t 
     for (uint32_t i = 0; i < height; i++) {
         for (uint32_t j = 0; j < width; j++) {
             fb32[(y + i) * display->width + x + j] = color;
+
         }
     }
     xbox_video_flush_cache();
-    __asm__ volatile("sfence");
-    __asm__ volatile("wbinvd ");
 }
 
 static void freertos_entry(void *parameters)
@@ -70,7 +69,6 @@ static void freertos_entry(void *parameters)
     xbox_interrupt_enable(XBOX_PIC_SMC_IRQ, 1);
 
     usb_init();
-
 
     ide_bus_init(XBOX_ATA_BUSMASTER_BASE, XBOX_ATA_PRIMARY_BUS_CTRL_BASE, XBOX_ATA_PRIMARY_BUS_IO_BASE, &ata_bus);
 
@@ -111,7 +109,7 @@ static void freertos_entry(void *parameters)
 
     xbox_led_output(XLED_GREEN, XLED_GREEN, XLED_GREEN, XLED_GREEN);
 
-    //xTaskCreate(doom_task, "Doom!", configMINIMAL_STACK_SIZE * 2, NULL, THREAD_PRIORITY_NORMAL, NULL);
+    xTaskCreate(doom_task, "Doom!", configMINIMAL_STACK_SIZE * 2, NULL, THREAD_PRIORITY_NORMAL, NULL);
 
     // We are done here. Delete this task.
     vTaskDelete(NULL);
