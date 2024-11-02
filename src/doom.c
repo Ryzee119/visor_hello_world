@@ -223,7 +223,7 @@ int doom_entry(const char *wad_path)
         }
 
         uint32_t x = 20;
-        char fps_buffer[32];
+        char fps_buffer[16];
         time = XBOX_MAX(time, 1);
         snprintf(fps_buffer, sizeof(fps_buffer), "FPS: %d\n", 10000 / time);
         char *c = fps_buffer;
@@ -240,7 +240,7 @@ int doom_entry(const char *wad_path)
         xbox_video_flush_cache();
 
         xbox_video_do_vblank_irq_one_shot(vblank_callback);
-        xSemaphoreTake(doom_vblank_semaphore, portMAX_DELAY);
+        xSemaphoreTake(doom_vblank_semaphore, (1000 / refresh_rate) + 1);
 
         xbox_video_set_option(XBOX_VIDEO_OPTION_FRAMEBUFFER, (uint32_t *)gpu_backbuffer);
     }

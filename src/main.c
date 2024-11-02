@@ -15,12 +15,29 @@ static void doom_task(void *parameters)
 
 static xbox_eeprom_t eeprom;
 
+
+void draw_rect(uint32_t color, uint32_t x, uint32_t y, uint32_t width, uint32_t height)
+{
+    const display_information_t *display = xbox_video_get_display_information();
+    if (!display->frame_buffer) {
+        return;
+    }
+
+    uint32_t *fb32 = (uint32_t *)display->frame_buffer;
+    for (uint32_t i = 0; i < height; i++) {
+        for (uint32_t j = 0; j < width; j++) {
+            fb32[(y + i) * display->width + x + j] = color;
+        }
+    }
+    xbox_video_flush_cache();
+    __asm__ volatile("sfence");
+    __asm__ volatile("wbinvd ");
+}
+
 static void freertos_entry(void *parameters)
 {
     (void)parameters;
     printf("FreeRTOS entry\n");
-
-    xbox_led_output(XLED_RED, XLED_RED, XLED_RED, XLED_RED);
 
     // FreeRTOS x86 port uses the LAPIC timer. This must be used in-conjunction with the IOAPIC interrupt controller.
     // Although the xbox should have both of these peripherals, I could not get the IOAPIC to work. I suspect there is
@@ -32,14 +49,32 @@ static void freertos_entry(void *parameters)
     xbox_interrupt_enable(XBOX_PIT_TIMER_IRQ, 1);
 
     freertos_running = 1;
+    xbox_led_output(XLED_RED, XLED_RED, XLED_RED, XLED_RED);
 
     display_init();
 
+     //Get frame buffer and draw some rects
+    //ARGB8888
+    const display_information_t *display = xbox_video_get_display_information();
+    uint32_t red = 0xFFFF0000;
+    uint32_t green = 0xFF00FF00;
+    uint32_t blue = 0xFF0000FF;
+    const uint32_t sz = 50;
+    draw_rect(red, 0, 0, sz, sz);
+    draw_rect(green, display->width - sz, 0, sz, sz);
+    draw_rect(blue, 0, display->height - sz, sz, sz);
+    draw_rect(green | red, display->width - sz, display->height - sz, sz, sz);
+
     interrupts_init();
+
     xbox_interrupt_enable(XBOX_PIC_SMC_IRQ, 1);
 
     usb_init();
+
+
     ide_bus_init(XBOX_ATA_BUSMASTER_BASE, XBOX_ATA_PRIMARY_BUS_CTRL_BASE, XBOX_ATA_PRIMARY_BUS_IO_BASE, &ata_bus);
+
+    printf_ts("[FS] Mounting filesystems\n");
 
 #if (0)
     cpuid_eax_01 cpuid_info;
@@ -74,9 +109,10 @@ static void freertos_entry(void *parameters)
         printf_ts("[FS] Error mounting drive D as ISO9660\n");
     }
 
-    xTaskCreate(doom_task, "Doom!", configMINIMAL_STACK_SIZE * 2, NULL, THREAD_PRIORITY_NORMAL, NULL);
-
     xbox_led_output(XLED_GREEN, XLED_GREEN, XLED_GREEN, XLED_GREEN);
+
+    //xTaskCreate(doom_task, "Doom!", configMINIMAL_STACK_SIZE * 2, NULL, THREAD_PRIORITY_NORMAL, NULL);
+
     // We are done here. Delete this task.
     vTaskDelete(NULL);
     return;

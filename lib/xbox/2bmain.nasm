@@ -136,6 +136,10 @@ section .visor_entry
     ; Enable MTRRs
     WR_MSR 0x2ff, 0x00000000, 0x00000800
 
+    mov eax, eax
+    mov cr3, eax
+    wbinvd
+
     ; Enable Caching
     mov eax, cr0
     mov ebx, eax

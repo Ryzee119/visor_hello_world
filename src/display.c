@@ -19,9 +19,12 @@ void display_init()
     }
 
     uint8_t *fb = aligned_alloc(0x1000, width * height * bpp);
-    memset(XBOX_GET_WRITE_COMBINE_PTR(fb), 0x00, width * height * bpp);
+    fb = XBOX_GET_WRITE_COMBINE_PTR(fb);
+    memset(fb, 0x66, width * height * bpp);
     xbox_video_flush_cache();
-    xbox_video_init(mode_coding, (bpp == 2) ? RGB565 : ARGB8888, XBOX_GET_WRITE_COMBINE_PTR(fb));
+    xbox_video_init(mode_coding, (bpp == 2) ? RGB565 : ARGB8888, fb);
+
+    printf_ts("[DISPLAY] Using mode %08X\n", mode_coding);
 }
 
 void display_clear()

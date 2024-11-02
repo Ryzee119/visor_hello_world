@@ -98,6 +98,12 @@ static inline uint32_t xbox_gpu_input32(xbox_gpu_register_t reg, uint32_t offset
     return gpu_base[(reg + offset) / 4];
 }
 
+static inline uint32_t xbox_gpu_input08(xbox_gpu_register_t reg, uint32_t offset)
+{
+    volatile uint8_t *gpu_base = (volatile uint8_t *)PCI_GPU_MEMORY_REGISTER_BASE_0;
+    return gpu_base[(reg + offset)];
+}
+
 static inline void xbox_gpu_output08(xbox_gpu_register_t reg, uint32_t offset, uint8_t value)
 {
     volatile uint8_t *gpu_base = (volatile uint8_t *)PCI_GPU_MEMORY_REGISTER_BASE_0;
@@ -122,7 +128,7 @@ static void xbox_gpu_output_crtc(uint8_t index, uint8_t value)
     xbox_gpu_output08(PRMCIO, 0x3D5, value);
 }
 
-#if (0)
+#if (1)
 static void xbox_gpu_output_clut(uint8_t regnum, uint8_t red, uint8_t green, uint8_t blue)
 {
     xbox_gpu_output08(PRMDIO, 0x3C8, regnum);
@@ -334,9 +340,10 @@ void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, voi
     xbox_gpu_output_crtc(0x28, ((bpp == 4) ? 0x83 : 0x82));
 
     for (int i = 0; i < 3; i++) {
-        while ((mmio_input_byte(PCI_GPU_MEMORY_REGISTER_BASE_0 + 0x006013da) & 0x08) != 0x00)
+        ;
+        while ((xbox_gpu_input08(PRMCIO, 0x3DA) & 0x08) != 0x00)
             ;
-        while ((mmio_input_byte(PCI_GPU_MEMORY_REGISTER_BASE_0 + 0x006013da) & 0x08) == 0x00)
+        while ((xbox_gpu_input08(PRMCIO, 0x3DA) & 0x08) == 0x00)
             ;
     }
 
@@ -346,7 +353,15 @@ void xbox_video_init(uint32_t mode_coding, xbox_framebuffer_format_t format, voi
 
     xbox_gpu_output32(PCRTC, 0x800, (uint32_t)frame_buffer);
 
-    // xbox_gpu_output_clut(0, 0, 0, 0);
+    xbox_gpu_output08(PRMDIO, 0x3C8, 0);
+
+    // Initialise the CLUT from 0 to 0xFF to 1:1 mapping
+    xbox_gpu_output_clut(0, 0, 0, 0);
+    for (int i = 1; i <= 0xFF; i++) {
+        xbox_gpu_output08(PRMDIO, 0x3C9, i);
+        xbox_gpu_output08(PRMDIO, 0x3C9, i);
+        xbox_gpu_output08(PRMDIO, 0x3C9, i);
+    }
 
     temp = 1;
     xbox_video_set_option(XBOX_VIDEO_OPTION_VIDEO_FLICKER_FILTER, &temp);
@@ -384,7 +399,8 @@ const display_information_t *xbox_video_get_display_information()
 }
 
 static void *vblank_callback = NULL;
-void gpu_handler() {
+void gpu_handler()
+{
 
     // Disable and reset VBLANK interrupt
     xbox_gpu_output32(PCRTC, 0x140, 0x00000000);
@@ -401,7 +417,7 @@ void xbox_video_do_vblank_irq_one_shot(void (*callback)(void))
     vblank_callback = callback;
 
     // Enable hardware interrupts
-    xbox_gpu_output32(PMC, 0x140, 0x00000001); 
+    xbox_gpu_output32(PMC, 0x140, 0x00000001);
 
     // Reset pending VBLANK interrupt
     xbox_gpu_output32(PCRTC, 0x100, 0x00000001);
@@ -447,9 +463,11 @@ uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter)
                         smbus_input_dword(current_encoder_address, 0x00, &temp);
                         smbus_output_dword(current_encoder_address, 0x00, temp & 0xFFFFFFFD);
                     }
-
                     break;
                 case XBOX_SMBUS_ADDRESS_ENCODER_CONEXANT:
+                    if (*parameter) {
+                        smbus_output_byte(current_encoder_address, 0xBA, 0x3F);
+                    }
                     break;
                 case XBOX_SMBUS_ADDRESS_ENCODER_FOCUS:
                     if (*parameter) {
@@ -466,8 +484,24 @@ uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter)
             switch (current_encoder_address) {
                 case XBOX_SMBUS_ADDRESS_ENCODER_XCALIBUR:
                     break;
-                case XBOX_SMBUS_ADDRESS_ENCODER_CONEXANT:
-                    break;
+                case XBOX_SMBUS_ADDRESS_ENCODER_CONEXANT: {
+                    uint8_t conex_c8 = 0x80;
+                    uint8_t conex_34 = 0x00;
+                    smbus_input_byte(current_encoder_address, 0xC8, &conex_c8);
+                    if (*parameter == 0) {
+                        conex_c8 |= 0x40;
+                        smbus_output_byte(current_encoder_address, 0xC8, conex_c8);
+                    } else {
+                        conex_c8 &= 0x80;
+                        if (*parameter >= 1 && *parameter <= 3) {
+                            conex_c8 |= (*parameter << 0) | (*parameter << 3);
+                        } else if (*parameter == 5) {
+                            conex_34 = 0x80;
+                        }
+                        smbus_output_byte(current_encoder_address, 0xC8, conex_c8);
+                        smbus_output_byte(current_encoder_address, 0x34, conex_34);
+                    }
+                } break;
                 case XBOX_SMBUS_ADDRESS_ENCODER_FOCUS:
                     if (*parameter == 0) {
                         *parameter = 0;
@@ -488,10 +522,17 @@ uint8_t xbox_video_set_option(xbox_video_option_t option, uint32_t *parameter)
             switch (current_encoder_address) {
                 case XBOX_SMBUS_ADDRESS_ENCODER_XCALIBUR:
                     break;
-                case XBOX_SMBUS_ADDRESS_ENCODER_CONEXANT:
+                case XBOX_SMBUS_ADDRESS_ENCODER_CONEXANT: {
+                    uint8_t conex_96;
+                    smbus_input_byte(current_encoder_address, 0x96, &conex_96);
+                    conex_96 &= 0x0F;
+                    if (*parameter) {
+                        conex_96 |= 0x10;
+                    }
+                    smbus_output_byte(current_encoder_address, 0x96, conex_96);
+                } break;
                     break;
                 case XBOX_SMBUS_ADDRESS_ENCODER_FOCUS:
-                    break;
                 default:
                     return XBOX_VIDEO_RETURN_ERROR;
             }
@@ -600,6 +641,7 @@ void apply_all_video_modes(void *fb)
 }
 
 // Perhaps last cache line when copying to write combine buffer is not flushed?
-void xbox_video_flush_cache() {
+void xbox_video_flush_cache()
+{
     __asm__ volatile("sfence");
 }

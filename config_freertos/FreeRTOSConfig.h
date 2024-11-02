@@ -416,7 +416,7 @@
  * number of the failing assert (for example, "vAssertCalled( __FILE__, __LINE__
  * )" or it can simple disable interrupts and sit in a loop to halt all
  * execution on the failing line for viewing in a debugger. */
-
+#if (0)
 #ifdef TICK_TYPE_WIDTH_16_BITS //Hack to prevent is being included in .S file
 #include <stdio.h>
 static inline void printme(const char *f, int l) {
@@ -437,6 +437,14 @@ static inline void printme(const char *f, int l) {
         taskDISABLE_INTERRUPTS(); \
         for( ; ; )                \
         ;                         \
+    }
+#endif
+#else
+// st ub out the assert
+#define configASSERT( x )        \
+    if( ( x ) == 0 )              \
+    {                             \
+ \
     }
 #endif
 
