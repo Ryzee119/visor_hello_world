@@ -4,6 +4,8 @@ This is a 256kB bios image that replaces the OG Xbox BIOS to do one thing. Play 
 
 100% opensource with no copyright code.
 
+https://github.com/user-attachments/assets/63528b85-49a3-4191-af5b-598ea9471e04
+
 ## Todo
 * Fix conexant video encoder issues
 * Test Xcalibur, Focus alot more
